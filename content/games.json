@@ -1,0 +1,89 @@
+[
+  {
+    "slug": "garden-guard",
+    "title": "Garden Guard",
+    "description": "Plant helpers to stop the hungry snails!",
+    "instructions": "Pick a plant and tap the garden. Sunflowers make sunshine, pea shooters shoo snails, and walls block them. Protect the house!",
+    "icon": "sprout",
+    "color": "mint",
+    "status": "new",
+    "featured": true,
+    "es": {
+      "title": "Guardianes del Jardín",
+      "description": "¡Siembra plantas para detener a los caracoles hambrientos!",
+      "instructions": "Elige una planta y toca el jardín. Los girasoles dan sol, los lanzaguisantes espantan caracoles y los muros los detienen. ¡Protege la casa!"
+    }
+  },
+  {
+    "slug": "super-jump",
+    "title": "Super Jump",
+    "description": "Run, jump, and grab coins on the way to the flag!",
+    "instructions": "Move with the arrow keys or the buttons, jump with Space. Grab coins, hop on the slimes, and reach the flag!",
+    "icon": "flag",
+    "color": "accent",
+    "status": "available",
+    "featured": true,
+    "es": {
+      "title": "Súper Salto",
+      "description": "¡Corre, salta y junta monedas hasta llegar a la bandera!",
+      "instructions": "Muévete con las flechas o los botones y salta con Espacio. ¡Junta monedas, aplasta a las babosas y llega a la bandera!"
+    }
+  },
+  {
+    "slug": "memory-match",
+    "title": "Memory Match",
+    "description": "Flip the cards and find all the pairs!",
+    "instructions": "Tap two cards to flip them. If they match, they stay open. Find every pair in as few moves as you can!",
+    "icon": "brain",
+    "color": "secondary",
+    "status": "available",
+    "featured": false,
+    "es": {
+      "title": "Memorama",
+      "description": "¡Voltea las cartas y encuentra todas las parejas!",
+      "instructions": "Toca dos cartas para voltearlas. Si son iguales, se quedan abiertas. ¡Encuentra todas las parejas con los menos movimientos posibles!"
+    }
+  },
+  {
+    "slug": "catch-it",
+    "title": "Catch It!",
+    "description": "Tap the stars as fast as you can.",
+    "instructions": "Stars pop up all over the board. Tap them (or press Enter) before they vanish. You have 30 seconds!",
+    "icon": "star",
+    "color": "sun",
+    "status": "available",
+    "es": {
+      "title": "¡Atrápala!",
+      "description": "Toca las estrellas lo más rápido que puedas.",
+      "instructions": "Aparecen estrellas por todo el tablero. Tócalas (o presiona Enter) antes de que desaparezcan. ¡Tienes 30 segundos!"
+    }
+  },
+  {
+    "slug": "tic-tac-toe",
+    "title": "Tic-Tac-Toe",
+    "description": "Get three in a row to win.",
+    "instructions": "Take turns placing X and O. Get three in a row across, down, or corner to corner to win!",
+    "icon": "grid",
+    "color": "mint",
+    "status": "available",
+    "es": {
+      "title": "Gato",
+      "description": "Haz tres en línea para ganar.",
+      "instructions": "Tomen turnos para poner X y O. ¡Haz tres en línea, en horizontal, vertical o diagonal, para ganar!"
+    }
+  },
+  {
+    "slug": "color-quest",
+    "title": "Color Quest",
+    "description": "Repeat the colour pattern. Coming soon!",
+    "instructions": "Watch the colours light up, then tap them in the same order.",
+    "icon": "palette",
+    "color": "sky",
+    "status": "coming-soon",
+    "es": {
+      "title": "Aventura de Colores",
+      "description": "Repite el patrón de colores. ¡Muy pronto!",
+      "instructions": "Mira cómo se iluminan los colores y tócalos en el mismo orden."
+    }
+  }
+]

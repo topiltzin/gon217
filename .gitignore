@@ -1,0 +1,36 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local
+.env.*.local
+.env.local*
+env.local*
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+
+# 3D conversion worker (spec 009)
+worker/.env
+worker/.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Next.js / testing
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel
+playwright-report/
+test-results/

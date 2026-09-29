@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Every text/background pair used by components is checked for
+ * 4.5:1 contrast in tests/unit/contrast.test.ts — add new pairs there too.
+ */
+@theme {
+  --color-background: #0f0f23;
+  --color-foreground: #e2e8f0;
+  --color-card: #1e1c35;
+  --color-card-foreground: #e2e8f0;
+  --color-muted: #27273b;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #4c1d95;
+
+  --color-primary: #7c3aed;
+  --color-on-primary: #ffffff;
+  --color-secondary: #a78bfa;
+  --color-on-secondary: #0f172a;
+  --color-accent: #f43f5e;
+  --color-on-accent: #000000;
+
+  /* Extra playful card colours; each pairs with its on-colour. */
+  --color-sun: #facc15;
+  --color-on-sun: #0f0f23;
+  --color-mint: #34d399;
+  --color-on-mint: #0f0f23;
+  --color-sky: #38bdf8;
+  --color-on-sky: #0f0f23;
+
+  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.5rem;
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 300ms;
+
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-pop: pop var(--duration-slow) var(--ease-bounce);
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(-3deg);
+    }
+    50% {
+      transform: translateY(-10px) rotate(3deg);
+    }
+  }
+
+  @keyframes pop {
+    from {
+      transform: scale(0.85);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgb(124 58 237 / 0.28), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgb(244 63 94 / 0.16), transparent 35%),
+    radial-gradient(circle at 50% 100%, rgb(56 189 248 / 0.12), transparent 45%);
+  background-attachment: fixed;
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 4px solid var(--color-sun);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

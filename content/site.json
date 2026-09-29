@@ -1,0 +1,13 @@
+{
+  "name": "Gonzalo's Game Space",
+  "tagline": "Quick, silly, awesome games to play with your friends.",
+  "host": {
+    "name": "Gonzalo",
+    "welcome": "Hey friends! Welcome to my game space. Pick a game, beat your best score, and come back soon. I'll keep adding new games here!"
+  },
+  "es": {
+    "name": "Los Juegos de Gonzalo",
+    "tagline": "Juegos rápidos, locos y geniales para jugar con tus amigos.",
+    "welcome": "¡Hola, amigos! Bienvenidos a mi espacio de juegos. Elige un juego, supera tu mejor puntuación y vuelve pronto. ¡Voy a seguir agregando juegos nuevos!"
+  }
+}

@@ -1,0 +1,285 @@
+/**
+ * UI strings in English and Spanish. Content files (games, announcements,
+ * videos) carry their own translations; see lib/content.ts.
+ */
+
+export const LOCALES = ["en", "es"] as const;
+export type Locale = (typeof LOCALES)[number];
+export const DEFAULT_LOCALE: Locale = "en";
+
+export function isLocale(value: string): value is Locale {
+  return (LOCALES as readonly string[]).includes(value);
+}
+
+/** Picks the best supported locale from an Accept-Language header. */
+export function negotiateLocale(acceptLanguage: string | null): Locale {
+  if (!acceptLanguage) return DEFAULT_LOCALE;
+  const ranked = acceptLanguage
+    .split(",")
+    .map((part) => {
+      const [tag, ...params] = part.trim().split(";");
+      const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+      return { lang: tag.toLowerCase().split("-")[0], q: q ? Number(q.slice(2)) : 1 };
+    })
+    .filter((entry) => entry.lang && !Number.isNaN(entry.q))
+    .sort((a, b) => b.q - a.q);
+  return ranked.map((entry) => entry.lang).find(isLocale) ?? DEFAULT_LOCALE;
+}
+
+export type ScoreUnit = "moves" | "stars" | "coins" | "snails";
+
+const en = {
+  languageName: "English",
+  brandTag: "Game Space",
+  skip: "Skip to content",
+  switchLanguage: "Cambiar a español",
+  footer: (host: string) => `Made with love by ${host} for friends. No sign-ups, no ads, no tracking.`,
+  hostedBy: (name: string) => `Hosted by ${name}`,
+  playNow: "Play now",
+  allGames: "All games",
+  hostPick: (name: string) => `${name}'s pick`,
+  play: "Play",
+  playGame: (title: string) => `Play ${title}`,
+  fromHost: (name: string) => `From ${name}`,
+  yourHost: "Your host",
+  news: "News",
+  noNews: (name: string) => `No news yet. ${name} will post updates and new games here soon!`,
+  videos: "Videos",
+  videosIntro: (name: string) => `Videos ${name} likes. They open on YouTube.`,
+  noVideos: (name: string) => `No videos yet. ${name} will share some soon!`,
+  opensYouTube: "opens YouTube",
+  leaving: {
+    title: "You're going to YouTube",
+    body: "YouTube is a different website. Ask a grown-up before you go!",
+    go: "Go to YouTube",
+    stay: "Stay here",
+  },
+  anotherRound: "Ready for another round?",
+  challenge: "Challenge a friend to beat your best score!",
+  pickGame: "Pick a game",
+  badges: { featured: "Featured", new: "New!", comingSoon: "Coming soon", newBest: "New best score!" },
+  notFound: {
+    title: "Oops! Lost in space",
+    body: "We couldn't find that page. Maybe the game flew away?",
+    home: "Take me home",
+  },
+  shell: {
+    back: "Back to games",
+    noBest: "No best score yet",
+    best: (n: number, unit: string) => `Your best: ${n} ${unit}`,
+    loading: "Getting the game ready…",
+    playing: (title: string) => `${title}: playing`,
+    over: (title: string) => `${title}: round over`,
+    playAgain: "Play again",
+  },
+  units: { moves: "moves", stars: "stars", coins: "coins", snails: "snails" } satisfies Record<ScoreUnit, string>,
+  memory: {
+    moves: (n: number) => `Moves: ${n}`,
+    pairs: (found: number, total: number) => `Pairs: ${found}/${total}`,
+    match: "It's a match!",
+    noMatch: "Not a match.",
+    cardDown: (i: number) => `Card ${i}, face down`,
+    card: (i: number, symbol: string, matched: boolean) => `Card ${i}, ${symbol}${matched ? ", matched" : ""}`,
+    symbols: {
+      star: "star",
+      rocket: "rocket",
+      zap: "lightning bolt",
+      puzzle: "puzzle piece",
+      palette: "paint palette",
+      brain: "brain",
+    },
+    won: "You found them all!",
+    took: (n: number) => `It took you ${n} moves.`,
+  },
+  catchIt: {
+    secondsLeft: "seconds left",
+    starsCaught: "stars caught",
+    spot: (i: number, star: boolean) => `Spot ${i}${star ? ", star!" : ""}`,
+    keyboard: "Keyboard:",
+    or: "or",
+    toCatch: "to catch the star.",
+    speedy: "Super speedy!",
+    timesUp: "Time's up!",
+    caught: (n: number) => `You caught ${n} ${n === 1 ? "star" : "stars"}!`,
+  },
+  ttt: {
+    who: "Who are you playing?",
+    computer: "Play the computer",
+    friends: "Two players",
+    yourTurn: "Your turn! You are X.",
+    thinking: "Computer is thinking…",
+    turnOf: (p: string) => `${p}'s turn`,
+    draw: "It's a draw!",
+    drawDetail: "Nobody wins this time. Rematch?",
+    wins: (p: string) => `${p} wins!`,
+    winsDetail: "Three in a row. Great game!",
+    youWon: "You won!",
+    youWonDetail: "You beat the computer. Nice moves!",
+    computerWon: "The computer won!",
+    computerWonDetail: "So close! Want to try again?",
+    cell: (row: number, col: number, mark: string | null) => `Row ${row}, column ${col}, ${mark ?? "empty"}`,
+  },
+  jump: {
+    screen: "Game screen: run and jump to reach the flag.",
+    coins: "Coins",
+    lives: "Lives",
+    status: (coins: number, lives: number) => `${coins} coins, ${lives} ${lives === 1 ? "life" : "lives"} left`,
+    left: "Move left",
+    right: "Move right",
+    jump: "Jump",
+    keyboard: "Keyboard: arrow keys or A/D to move, Space or ↑ to jump.",
+    won: "You reached the flag!",
+    lost: "Game over!",
+    detail: (n: number) => `You collected ${n} ${n === 1 ? "coin" : "coins"}.`,
+  },
+  garden: {
+    sun: "Sunshine",
+    hearts: "Hearts",
+    wave: (n: number, total: number) => `Wave ${n} of ${total}`,
+    shooed: "Snails shooed",
+    plants: { sunflower: "Sunflower", peashooter: "Pea Shooter", wall: "Stone Wall" },
+    hints: { sunflower: "Makes sunshine", peashooter: "Shoots peas", wall: "Blocks snails" },
+    pick: "Pick a plant, then tap the garden.",
+    garden: "Garden",
+    cell: (row: number, col: number, plant: string | null) => `Row ${row}, column ${col}, ${plant ?? "empty"}`,
+    status: (hearts: number, wave: number) => `${hearts} ${hearts === 1 ? "heart" : "hearts"} left, wave ${wave}`,
+    keyboard: "Keyboard: 1, 2, 3 pick a plant, arrow keys move, Enter plants.",
+    won: "Garden saved!",
+    lost: "The snails got in!",
+    detail: (n: number) => `You shooed ${n} ${n === 1 ? "snail" : "snails"} away.`,
+  },
+};
+
+export type Dictionary = typeof en;
+
+const es: Dictionary = {
+  languageName: "Español",
+  brandTag: "Zona de juegos",
+  skip: "Saltar al contenido",
+  switchLanguage: "Switch to English",
+  footer: (host) => `Hecho con cariño por ${host} para sus amigos. Sin registros, sin anuncios, sin rastreo.`,
+  hostedBy: (name) => `Presentado por ${name}`,
+  playNow: "¡A jugar!",
+  allGames: "Todos los juegos",
+  hostPick: (name) => `La elección de ${name}`,
+  play: "Jugar",
+  playGame: (title) => `Jugar ${title}`,
+  fromHost: (name) => `De parte de ${name}`,
+  yourHost: "Tu anfitrión",
+  news: "Noticias",
+  noNews: (name) => `Todavía no hay noticias. ¡${name} publicará novedades y juegos nuevos aquí pronto!`,
+  videos: "Videos",
+  videosIntro: (name) => `Videos que le gustan a ${name}. Se abren en YouTube.`,
+  noVideos: (name) => `Todavía no hay videos. ¡${name} compartirá algunos pronto!`,
+  opensYouTube: "abre YouTube",
+  leaving: {
+    title: "Vas a ir a YouTube",
+    body: "YouTube es otro sitio web. ¡Pregúntale a un adulto antes de ir!",
+    go: "Ir a YouTube",
+    stay: "Quedarme aquí",
+  },
+  anotherRound: "¿Listo para otra ronda?",
+  challenge: "¡Reta a un amigo a superar tu mejor puntuación!",
+  pickGame: "Elige un juego",
+  badges: { featured: "Destacado", new: "¡Nuevo!", comingSoon: "Muy pronto", newBest: "¡Nuevo récord!" },
+  notFound: {
+    title: "¡Uy! Perdidos en el espacio",
+    body: "No encontramos esa página. ¿Será que el juego salió volando?",
+    home: "Llévame al inicio",
+  },
+  shell: {
+    back: "Volver a los juegos",
+    noBest: "Todavía no hay récord",
+    best: (n, unit) => `Tu récord: ${n} ${unit}`,
+    loading: "Preparando el juego…",
+    playing: (title) => `${title}: jugando`,
+    over: (title) => `${title}: fin de la ronda`,
+    playAgain: "Jugar otra vez",
+  },
+  units: { moves: "movimientos", stars: "estrellas", coins: "monedas", snails: "caracoles" },
+  memory: {
+    moves: (n) => `Movimientos: ${n}`,
+    pairs: (found, total) => `Parejas: ${found}/${total}`,
+    match: "¡Son pareja!",
+    noMatch: "No son pareja.",
+    cardDown: (i) => `Carta ${i}, boca abajo`,
+    card: (i, symbol, matched) => `Carta ${i}, ${symbol}${matched ? ", encontrada" : ""}`,
+    symbols: {
+      star: "estrella",
+      rocket: "cohete",
+      zap: "rayo",
+      puzzle: "pieza de rompecabezas",
+      palette: "paleta de pintura",
+      brain: "cerebro",
+    },
+    won: "¡Las encontraste todas!",
+    took: (n) => `Te tomó ${n} movimientos.`,
+  },
+  catchIt: {
+    secondsLeft: "segundos restantes",
+    starsCaught: "estrellas atrapadas",
+    spot: (i, star) => `Casilla ${i}${star ? ", ¡estrella!" : ""}`,
+    keyboard: "Teclado:",
+    or: "o",
+    toCatch: "para atrapar la estrella.",
+    speedy: "¡Súper veloz!",
+    timesUp: "¡Se acabó el tiempo!",
+    caught: (n) => `¡Atrapaste ${n} ${n === 1 ? "estrella" : "estrellas"}!`,
+  },
+  ttt: {
+    who: "¿Contra quién juegas?",
+    computer: "Contra la computadora",
+    friends: "Dos jugadores",
+    yourTurn: "¡Tu turno! Eres la X.",
+    thinking: "La computadora está pensando…",
+    turnOf: (p) => `Turno de ${p}`,
+    draw: "¡Empate!",
+    drawDetail: "Esta vez nadie gana. ¿La revancha?",
+    wins: (p) => `¡Gana ${p}!`,
+    winsDetail: "Tres en línea. ¡Gran partida!",
+    youWon: "¡Ganaste!",
+    youWonDetail: "Le ganaste a la computadora. ¡Buenas jugadas!",
+    computerWon: "¡Ganó la computadora!",
+    computerWonDetail: "¡Casi! ¿Lo intentas otra vez?",
+    cell: (row, col, mark) => `Fila ${row}, columna ${col}, ${mark ?? "vacía"}`,
+  },
+  jump: {
+    screen: "Pantalla del juego: corre y salta hasta llegar a la bandera.",
+    coins: "Monedas",
+    lives: "Vidas",
+    status: (coins, lives) => `${coins} monedas, ${lives} ${lives === 1 ? "vida" : "vidas"}`,
+    left: "Mover a la izquierda",
+    right: "Mover a la derecha",
+    jump: "Saltar",
+    keyboard: "Teclado: flechas o A/D para moverte, Espacio o ↑ para saltar.",
+    won: "¡Llegaste a la bandera!",
+    lost: "¡Fin del juego!",
+    detail: (n) => `Juntaste ${n} ${n === 1 ? "moneda" : "monedas"}.`,
+  },
+  garden: {
+    sun: "Sol",
+    hearts: "Corazones",
+    wave: (n, total) => `Oleada ${n} de ${total}`,
+    shooed: "Caracoles espantados",
+    plants: { sunflower: "Girasol", peashooter: "Lanzaguisantes", wall: "Muro de piedra" },
+    hints: { sunflower: "Da sol", peashooter: "Lanza guisantes", wall: "Detiene caracoles" },
+    pick: "Elige una planta y luego toca el jardín.",
+    garden: "Jardín",
+    cell: (row, col, plant) => `Fila ${row}, columna ${col}, ${plant ?? "vacía"}`,
+    status: (hearts, wave) => `${hearts} ${hearts === 1 ? "corazón" : "corazones"}, oleada ${wave}`,
+    keyboard: "Teclado: 1, 2, 3 eligen planta, las flechas mueven, Enter siembra.",
+    won: "¡Salvaste el jardín!",
+    lost: "¡Los caracoles entraron!",
+    detail: (n) => `Espantaste ${n} ${n === 1 ? "caracol" : "caracoles"}.`,
+  },
+};
+
+export const dictionaries: Record<Locale, Dictionary> = { en, es };
+
+export function getDictionary(locale: Locale): Dictionary {
+  return dictionaries[locale];
+}
+
+export function otherLocale(locale: Locale): Locale {
+  return locale === "en" ? "es" : "en";
+}
