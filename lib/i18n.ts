@@ -171,7 +171,7 @@ const en = {
     ],
     enemiesTitle: "ENEMIES",
     enemies: [
-      ["HUSK", "Charges in and claws you up close."],
+      ["ZOMBIE", "Shambles after you and grabs you up close."],
       ["GLOOM", "Floats and spits fireballs from far away. Dodge them!"],
     ] as [string, string][],
     creditsLines: [
@@ -406,7 +406,7 @@ const es: Dictionary = {
     ],
     enemiesTitle: "ENEMIGOS",
     enemies: [
-      ["HUSK", "Se lanza contra ti y ataca con sus garras."],
+      ["ZOMBI", "Te persigue arrastrando los pies y te agarra de cerca."],
       ["GLOOM", "Flota y escupe bolas de fuego desde lejos. ¡Esquívalas!"],
     ],
     creditsLines: [

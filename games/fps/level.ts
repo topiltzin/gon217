@@ -5,7 +5,7 @@
  *   floors  .  tiles   ,  metal grate
  *   doors   D  opens when you walk up   L  needs the red key   $  secret wall (shoot it)
  *   marks   P  start   X  exit   *  lamp   o  crate
- *   enemies g  husk (melee)   s  gloom (spits fireballs)
+ *   enemies g  zombie (melee)   s  gloom (spits fireballs)
  *   pickups h  health   a  armor   b  bullets   c  shells   W  shotgun   K  red key
  *
  * Route: start room → main corridor → combat room (shotgun) → side corridor
@@ -57,7 +57,7 @@ export const WALL_HEIGHT = 4;
 export type WallKind = "brick" | "metal" | "stone" | "stripes";
 export type FloorKind = "tiles" | "grate";
 export type DoorKind = "auto" | "locked" | "secret";
-export type EnemyKind = "husk" | "gloom";
+export type EnemyKind = "zombie" | "gloom";
 export type PickupKind = "health" | "armor" | "bullets" | "shells" | "shotgun" | "key";
 
 export type Cell =
@@ -81,7 +81,7 @@ export type Level = {
 };
 
 const WALLS: Record<string, WallKind> = { "#": "brick", "=": "metal", "%": "stone", "!": "stripes" };
-const ENEMIES: Record<string, EnemyKind> = { g: "husk", s: "gloom" };
+const ENEMIES: Record<string, EnemyKind> = { g: "zombie", s: "gloom" };
 const PICKUPS: Record<string, PickupKind> = {
   h: "health",
   a: "armor",

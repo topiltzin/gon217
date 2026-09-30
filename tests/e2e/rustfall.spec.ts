@@ -33,11 +33,9 @@ test.describe("RUSTFALL menus", () => {
   });
 });
 
-test.describe("RUSTFALL game", () => {
-  // Software WebGL in CI is slow; a smaller window keeps it reasonable.
-  test.use({ viewport: { width: 800, height: 450 } });
-  test.skip(({ hasTouch }) => hasTouch, "keyboard and mouse game");
-  test.setTimeout(120_000);
+// Tagged @webgl: runs in its own Playwright project after the others (see playwright.config.ts).
+test.describe("RUSTFALL game @webgl", () => {
+  test.setTimeout(180_000);
 
   test("starts on click, shows the HUD, fires, and pauses", async ({ page }) => {
     const errors: string[] = [];
@@ -47,9 +45,9 @@ test.describe("RUSTFALL game", () => {
     await expect(start).toBeVisible({ timeout: 60_000 });
     await start.click();
 
-    await expect(page.getByText("HEALTH")).toBeVisible();
-    await expect(page.getByText("100%").first()).toBeVisible();
-    await expect(page.getByText("12 / 36")).toBeVisible();
+    await expect(page.getByText("HEALTH")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("100%").first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("12 / 36")).toBeVisible({ timeout: 30_000 });
 
     // Space would scroll the page if the game didn't stop it.
     await page.keyboard.press("Space");

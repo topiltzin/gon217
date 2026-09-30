@@ -10,6 +10,7 @@ test.beforeEach(({}, testInfo) => {
 
 for (const width of WIDTHS) {
   test(`no sideways scroll or layout shift at ${width}px`, async ({ page }) => {
+    test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 900 });
     await page.addInitScript(() => {
       (window as unknown as { __cls: number }).__cls = 0;

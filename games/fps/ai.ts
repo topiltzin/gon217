@@ -21,11 +21,13 @@ export type EnemyDef = {
   height: number;
   /** Height of the sprite's feet above the floor (floating enemies). */
   hover: number;
+  /** Colour of the particles when hit (0xRRGGBB). */
+  blood: number;
 };
 
 export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
-  husk: {
-    kind: "husk",
+  zombie: {
+    kind: "zombie",
     health: 45,
     speed: 4.6,
     attackRange: 2.4,
@@ -38,6 +40,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     width: 2.0,
     height: 2.8,
     hover: 0,
+    blood: 0x3fae2a,
   },
   gloom: {
     kind: "gloom",
@@ -53,6 +56,7 @@ export const ENEMY_DEFS: Record<EnemyKind, EnemyDef> = {
     width: 1.9,
     height: 1.9,
     hover: 0.9,
+    blood: 0x7c2ea0,
   },
 };
 

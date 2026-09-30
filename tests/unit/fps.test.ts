@@ -206,7 +206,7 @@ describe("weapons", () => {
 });
 
 describe("enemy AI", () => {
-  const def = ENEMY_DEFS.husk;
+  const def = ENEMY_DEFS.zombie;
   const p = (over: Partial<Perception>): Perception => ({
     health: 40,
     canSeePlayer: false,

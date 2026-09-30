@@ -256,64 +256,65 @@ export function makeSurfaces(): Surfaces {
 
 export type EnemyFrame = "walk0" | "walk1" | "attack" | "dead";
 
-/** Husk: a hunched, horned brute with glowing eyes and long claws (32×40). */
-function husk(ctx: Ctx, frame: EnemyFrame) {
-  const skin = "#7a5238";
-  const dark = "#4a2e1e";
-  const light = "#a0714c";
-  const bone = "#d8cfae";
+/** Zombie: rotting green skin, torn shirt, arms reaching forward, green ooze (32×40). */
+function zombie(ctx: Ctx, frame: EnemyFrame) {
+  const skin = "#7d9a62";
+  const shade = "#56703f";
+  const pale = "#a3bb86";
+  const shirt = "#44546a";
+  const shirtDark = "#2e3a4a";
+  const pants = "#4a3b2c";
+  const ooze = "#3fae2a";
   if (frame === "dead") {
-    rect(ctx, 3, 34, 26, 5, "#5a0a08");
-    rect(ctx, 6, 31, 20, 5, dark);
-    rect(ctx, 8, 30, 14, 3, skin);
-    rect(ctx, 20, 29, 6, 4, skin);
-    rect(ctx, 22, 28, 2, 2, bone);
-    rect(ctx, 10, 33, 3, 2, "#8c1410");
+    rect(ctx, 2, 34, 28, 5, "#1f5a14");
+    rect(ctx, 5, 35, 8, 3, ooze);
+    rect(ctx, 6, 31, 18, 5, shirt);
+    rect(ctx, 22, 30, 7, 5, skin);
+    rect(ctx, 24, 31, 2, 1, "#1a1a12");
+    rect(ctx, 3, 32, 5, 3, pants);
+    rect(ctx, 12, 32, 4, 2, shade);
     return;
   }
   const step = frame === "walk1" ? 2 : 0;
-  // Legs
-  rect(ctx, 9 - step, 28, 5, 11, dark);
-  rect(ctx, 18 + step, 28, 5, 11, dark);
-  rect(ctx, 8 - step, 37, 7, 3, "#2a1a10");
-  rect(ctx, 17 + step, 37, 7, 3, "#2a1a10");
-  // Torso
-  rect(ctx, 7, 13, 18, 16, skin);
-  rect(ctx, 8, 14, 16, 3, light);
-  for (let y = 19; y < 27; y += 3) rect(ctx, 11, y, 10, 1, dark);
-  rect(ctx, 15, 17, 2, 10, dark);
-  // Head
-  rect(ctx, 11, 5, 10, 9, skin);
-  rect(ctx, 11, 5, 10, 2, light);
-  rect(ctx, 9, 2, 2, 5, bone);
-  rect(ctx, 21, 2, 2, 5, bone);
-  rect(ctx, 8, 1, 2, 2, bone);
-  rect(ctx, 22, 1, 2, 2, bone);
-  rect(ctx, 12, 8, 3, 2, "#ff3b1f");
-  rect(ctx, 17, 8, 3, 2, "#ff3b1f");
-  rect(ctx, 13, 12, 6, 2, "#1a0504");
-  rect(ctx, 13, 12, 1, 1, bone);
-  rect(ctx, 15, 12, 1, 1, bone);
-  rect(ctx, 17, 12, 1, 1, bone);
-  // Arms
-  if (frame === "attack") {
-    rect(ctx, 2, 8, 6, 5, skin);
-    rect(ctx, 24, 8, 6, 5, skin);
-    rect(ctx, 1, 4, 2, 5, bone);
-    rect(ctx, 4, 3, 2, 5, bone);
-    rect(ctx, 26, 3, 2, 5, bone);
-    rect(ctx, 29, 4, 2, 5, bone);
-    rect(ctx, 12, 12, 8, 3, "#1a0504");
-  } else {
-    rect(ctx, 3, 14 + step, 4, 13, skin);
-    rect(ctx, 25, 14 - step + 2, 4, 13, skin);
-    rect(ctx, 2, 27 + step, 1, 3, bone);
-    rect(ctx, 4, 27 + step, 1, 3, bone);
-    rect(ctx, 6, 27 + step, 1, 3, bone);
-    rect(ctx, 25, 29 - step, 1, 3, bone);
-    rect(ctx, 27, 29 - step, 1, 3, bone);
-    rect(ctx, 29, 29 - step, 1, 3, bone);
-  }
+  const attack = frame === "attack";
+  // Legs: ragged trousers, shuffling
+  rect(ctx, 9 - step, 27, 6, 11, pants);
+  rect(ctx, 17 + step, 27, 6, 11, pants);
+  rect(ctx, 9 - step, 35, 2, 3, skin);
+  rect(ctx, 8 - step, 38, 7, 2, "#1f1a14");
+  rect(ctx, 16 + step, 38, 7, 2, "#1f1a14");
+  // Torso: torn shirt with skin showing through the rips
+  rect(ctx, 8, 13, 16, 15, shirt);
+  rect(ctx, 8, 13, 16, 2, shirtDark);
+  rect(ctx, 12, 18, 4, 5, skin);
+  rect(ctx, 13, 19, 1, 3, shade);
+  rect(ctx, 19, 22, 3, 4, skin);
+  rect(ctx, 9, 25, 3, 3, skin);
+  rect(ctx, 20, 16, 2, 2, ooze);
+  rect(ctx, 14, 26, 6, 2, shirtDark);
+  // Head: lopsided, sunken eyes, slack jaw, patchy hair
+  rect(ctx, 11, 3, 10, 10, skin);
+  rect(ctx, 11, 3, 10, 2, pale);
+  rect(ctx, 11, 2, 4, 2, "#2a241c");
+  rect(ctx, 17, 1, 3, 3, "#2a241c");
+  rect(ctx, 20, 5, 1, 5, shade);
+  rect(ctx, 12, 6, 3, 3, "#1a1a12");
+  rect(ctx, 17, 6, 3, 3, "#1a1a12");
+  rect(ctx, 13, 7, 1, 1, "#e8f0a0");
+  rect(ctx, 18, 7, 1, 1, "#e8f0a0");
+  rect(ctx, 13, attack ? 10 : 11, 6, attack ? 3 : 2, "#1a0f0a");
+  rect(ctx, 14, 10, 1, 1, "#d8cfae");
+  rect(ctx, 17, 10, 1, 1, "#d8cfae");
+  rect(ctx, 12, 12, 2, 2, ooze);
+  // Arms reaching forward (raised higher to grab when attacking)
+  const armY = attack ? 9 : 14 + step;
+  const armY2 = attack ? 9 : 15 - step;
+  rect(ctx, 3, armY, 6, 4, shirt);
+  rect(ctx, 23, armY2, 6, 4, shirt);
+  rect(ctx, 2, armY + 4, 5, 3, skin);
+  rect(ctx, 25, armY2 + 4, 5, 3, skin);
+  for (const x of [2, 4, 6]) rect(ctx, x, armY + 7, 1, 2, shade);
+  for (const x of [25, 27, 29]) rect(ctx, x, armY2 + 7, 1, 2, shade);
 }
 
 /** Gloom: a floating one-eyed orb trailing tendrils, spits fireballs (32×32). */
@@ -362,7 +363,7 @@ export function makeEnemyArt(): EnemyArt {
         return [f, toTexture(c, false)];
       }),
     ) as Record<EnemyFrame, Texture>;
-  return { husk: build(32, 40, husk, 101), gloom: build(32, 32, gloom, 202) };
+  return { zombie: build(32, 40, zombie, 101), gloom: build(32, 32, gloom, 202) };
 }
 
 /* ---------- Pickups and effects ---------- */

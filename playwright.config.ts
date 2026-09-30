@@ -21,11 +21,21 @@ export default defineConfig({
   projects: [
     {
       name: "mobile",
+      grepInvert: /@webgl/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 375, height: 740 }, hasTouch: true },
     },
     {
       name: "desktop",
+      grepInvert: /@webgl/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      // WebGL tests run alone after the rest: without a GPU, Chromium renders in
+      // software, and sharing the CPU with other workers starves it.
+      name: "webgl",
+      grep: /@webgl/,
+      dependencies: ["mobile", "desktop"],
+      use: { ...devices["Desktop Chrome"], viewport: { width: 800, height: 450 } },
     },
   ],
 });

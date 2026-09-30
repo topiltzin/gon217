@@ -42,9 +42,9 @@ const SHOTGUN_PUMP: Part[] = [
 ];
 
 const MUZZLE: Record<WeaponId, [number, number, number]> = { pistol: [0, 0.05, -0.34], shotgun: [0, 0.05, -0.72] };
-const REST = { x: 0.1, y: -0.22, z: -0.5 };
-/** A slight inward turn so the weapon shows its side, not just its back. */
-const YAW = -0.3;
+// Centred and pointing straight ahead: a barrel parallel to the view vanishes
+// at the screen centre, so the gun visibly aims at the crosshair.
+const REST = { x: 0, y: -0.24, z: -0.5 };
 
 /**
  * First-person weapon, drawn in its own scene and camera on top of the world
@@ -170,7 +170,7 @@ export class Viewmodel {
       REST.y - Math.abs(Math.cos(this.bob)) * 0.02 * amp - this.lower * lowerY - (s.sprinting ? 0.04 : 0),
       REST.z + this.kick * 0.08,
     );
-    this.root.rotation.set(this.kick * 0.25 + (s.reloading ? this.lower * 0.5 : 0), YAW + (s.sprinting ? 0.35 : 0), s.sprinting ? 0.15 : 0);
+    this.root.rotation.set(this.kick * 0.25 + (s.reloading ? this.lower * 0.5 : 0), s.sprinting ? 0.35 : 0, s.sprinting ? 0.15 : 0);
 
     // Shotgun pump: back then forward after each shot.
     this.pumpTime = Math.max(0, this.pumpTime - dt);

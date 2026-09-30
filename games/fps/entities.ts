@@ -156,13 +156,14 @@ export class Enemy {
     this.health -= amount;
     this.flash = 0.12;
     this.provoked = 3;
-    particles.spawn(this.x, hitY, this.z, 6 + Math.min(10, amount / 3), 0x8a0c08, 2.2, 14);
+    particles.spawn(this.x, hitY, this.z, 6 + Math.min(10, amount / 3), this.def.blood, 2.2, 14);
     if (this.health > 0) return false;
     this.state = "DEAD";
     this.material.map = this.art.dead;
     this.material.color.setScalar(1);
-    particles.spawn(this.x, this.def.hover + this.def.height * 0.5, this.z, 36, 0x7a0a06, 4, 12, 0.9);
-    particles.spawn(this.x, this.def.hover + this.def.height * 0.5, this.z, 10, 0x3a1a10, 3, 10, 0.9);
+    const mid = this.def.hover + this.def.height * 0.5;
+    particles.spawn(this.x, mid, this.z, 36, this.def.blood, 4, 12, 0.9);
+    particles.spawn(this.x, mid, this.z, 10, 0x2a2a1a, 3, 10, 0.9);
     return true;
   }
 
@@ -261,7 +262,7 @@ export class Enemy {
 
   private shade(ctx: EnemyContext) {
     const l = ctx.world.lightAt(this.x, this.z);
-    if (this.flash > 0) this.material.color.setRGB(1.6, 0.35, 0.3);
+    if (this.flash > 0) this.material.color.setScalar(2.2);
     else this.material.color.setScalar(l);
   }
 
