@@ -98,8 +98,15 @@ export default function CatchIt({ onFinish }: GameProps) {
               className="grid aspect-square cursor-pointer touch-manipulation place-items-center rounded-3xl bg-card shadow-inner shadow-black/40"
             >
               {hasStar && (
-                <span key={state.targetUntil} className="grid size-4/5 animate-pop place-items-center rounded-full bg-sun text-on-sun">
-                  <Icon name="star" className="size-3/5" strokeWidth={2.75} />
+                <span key={state.targetUntil} className="grid size-4/5 animate-pop place-items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- tiny pixel-art PNG, must stay unsmoothed */}
+                  <img
+                    src="/sprites/gonzalo-head.png"
+                    alt=""
+                    width={16}
+                    height={16}
+                    className="size-full [image-rendering:pixelated]"
+                  />
                 </span>
               )}
             </button>
