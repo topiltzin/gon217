@@ -3,6 +3,8 @@
  * every access is guarded so blocked or corrupt storage just means "no best yet".
  */
 
+import { isBetter } from "@/games/scoring";
+
 export type ScoreDirection = "higher" | "lower";
 
 export type BestScore = { best: number; updatedAt: string };
@@ -31,10 +33,7 @@ export function readBest(slug: string): BestScore | null {
 
 /** Saves the score if it beats the stored best. Returns true when it did. */
 export function recordScore(slug: string, score: number, direction: ScoreDirection): boolean {
-  const current = readBest(slug);
-  const better =
-    !current || (direction === "higher" ? score > current.best : score < current.best);
-  if (!better) return false;
+  if (!isBetter(score, readBest(slug)?.best, direction)) return false;
   try {
     const store = storage();
     if (!store) return false;

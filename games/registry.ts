@@ -1,3 +1,4 @@
+import { gameScoring } from "./scoring";
 import type { GameEntry } from "./types";
 
 /**
@@ -8,21 +9,21 @@ import type { GameEntry } from "./types";
 export const gameRegistry: Record<string, GameEntry> = {
   "memory-match": {
     load: () => import("./memory-match/MemoryMatch"),
-    scoring: { direction: "lower", unit: "moves" },
+    scoring: gameScoring["memory-match"],
   },
   "catch-it": {
     load: () => import("./catch-it/CatchIt"),
-    scoring: { direction: "higher", unit: "stars" },
+    scoring: gameScoring["catch-it"],
   },
   "tic-tac-toe": {
     load: () => import("./tic-tac-toe/TicTacToe"),
   },
   "super-jump": {
     load: () => import("./super-jump/SuperJump"),
-    scoring: { direction: "higher", unit: "coins" },
+    scoring: gameScoring["super-jump"],
   },
   "garden-guard": {
     load: () => import("./garden-guard/GardenGuard"),
-    scoring: { direction: "higher", unit: "snails" },
+    scoring: gameScoring["garden-guard"],
   },
 };

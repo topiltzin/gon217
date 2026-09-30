@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-const PAGES = ["/en", "/es", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/en/games/garden-guard"];
+const PAGES = ["/en", "/es", "/en/player", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/en/games/garden-guard"];
 
+// Logging in is optional: nobody gets a cookie until they choose to create a player or log in.
 test("no third-party requests and no cookies", async ({ page, context, baseURL }) => {
   const origin = new URL(baseURL!).origin;
   const external: string[] = [];

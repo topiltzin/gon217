@@ -1,6 +1,5 @@
 import type { ComponentType } from "react";
-import type { ScoreUnit } from "@/lib/i18n";
-import type { ScoreDirection } from "@/lib/storage";
+import type { Scoring } from "./scoring";
 
 export type GameResult = {
   /** Big, friendly outcome line, e.g. "You won!" */
@@ -17,5 +16,5 @@ export type GameProps = {
 
 export type GameEntry = {
   load: () => Promise<{ default: ComponentType<GameProps> }>;
-  scoring?: { direction: ScoreDirection; unit: ScoreUnit };
+  scoring?: Scoring;
 };

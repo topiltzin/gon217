@@ -17,6 +17,7 @@ import {
   House,
   Languages,
   Lock,
+  LogOut,
   Megaphone,
   Palette,
   Play,
@@ -29,6 +30,7 @@ import {
   Star,
   Sun,
   Trophy,
+  UserRound,
   Tv,
   X,
   Zap,
@@ -70,6 +72,8 @@ const icons: Record<IconName | UiIconName, LucideIcon> = {
   "brick-wall": BrickWall,
   sun: Sun,
   snail: Snail,
+  user: UserRound,
+  "log-out": LogOut,
 };
 
 type UiIconName =
@@ -93,7 +97,9 @@ type UiIconName =
   | "flower"
   | "brick-wall"
   | "sun"
-  | "snail";
+  | "snail"
+  | "user"
+  | "log-out";
 
 type Props = {
   name: IconName | UiIconName;

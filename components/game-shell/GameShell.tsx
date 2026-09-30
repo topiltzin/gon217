@@ -2,6 +2,7 @@
 
 import { type ComponentType, useEffect, useRef, useState } from "react";
 import { useLocale, useT } from "@/components/I18nProvider";
+import { usePlayer } from "@/components/player/PlayerProvider";
 import { tileClass } from "@/components/colors";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -9,15 +10,20 @@ import { gameRegistry } from "@/games/registry";
 import type { GameProps, GameResult } from "@/games/types";
 import type { Game } from "@/lib/content";
 import { recordScore } from "@/lib/storage";
+import { Leaderboard } from "./Leaderboard";
 import { ResultPanel } from "./ResultPanel";
 import { ScoreBoard } from "./ScoreBoard";
 
-type Phase = { name: "intro" } | { name: "playing" } | { name: "finished"; result: GameResult; isNewBest: boolean };
+type Phase =
+  | { name: "intro" }
+  | { name: "playing" }
+  | { name: "finished"; result: GameResult; isNewBest: boolean };
 
 export function GameShell({ game }: { game: Game }) {
   const entry = gameRegistry[game.slug];
   const t = useT();
   const locale = useLocale();
+  const { state: playerState, recordPlayerScore } = usePlayer();
   const [GameComponent, setGameComponent] = useState<ComponentType<GameProps> | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: "intro" });
   const [round, setRound] = useState(0);
@@ -49,10 +55,13 @@ export function GameShell({ game }: { game: Game }) {
   }
 
   function finish(result: GameResult) {
-    const isNewBest =
-      entry.scoring !== undefined &&
-      result.score !== undefined &&
-      recordScore(game.slug, result.score, entry.scoring.direction);
+    let isNewBest = false;
+    if (entry.scoring && result.score !== undefined) {
+      // The device best is always kept; a logged-in player's best also goes to the server.
+      const deviceBest = recordScore(game.slug, result.score, entry.scoring.direction);
+      const loggedIn = playerState.status === "ready" && playerState.player !== null;
+      isNewBest = loggedIn ? recordPlayerScore(game.slug, result.score) : deviceBest;
+    }
     setPhase({ name: "finished", result, isNewBest });
   }
 
@@ -74,7 +83,12 @@ export function GameShell({ game }: { game: Game }) {
           <span className={`grid size-24 place-items-center rounded-3xl ${tileClass[game.color]}`}>
             <Icon name={game.icon} className="size-14" />
           </span>
-          <h1 id="intro-heading" ref={headingRef} tabIndex={-1} className="text-4xl font-bold outline-none sm:text-5xl">
+          <h1
+            id="intro-heading"
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-4xl font-bold outline-none sm:text-5xl"
+          >
             {game.title}
           </h1>
           <p className="text-xl text-card-foreground">{game.instructions}</p>
@@ -108,6 +122,10 @@ export function GameShell({ game }: { game: Game }) {
             headingRef={headingRef}
           />
         </>
+      )}
+
+      {phase.name !== "playing" && entry.scoring && (
+        <Leaderboard slug={game.slug} unit={t.units[entry.scoring.unit]} />
       )}
     </div>
   );
