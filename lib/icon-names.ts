@@ -12,6 +12,7 @@ export const ICON_NAMES = [
   "brain",
   "flag",
   "sprout",
+  "crosshair",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];

@@ -221,6 +221,52 @@ test.describe("Astro Storm", () => {
   });
 });
 
+test.describe("Gonzgun", () => {
+  test("choose a mode and a fighter before the fight", async ({ page }, testInfo) => {
+    const touch = testInfo.project.name === "mobile";
+    await page.goto("/en/games/gonzgun");
+    await press(page.getByRole("button", { name: "Play", exact: true }), touch);
+    const cpu = page.getByRole("button", { name: /1 player vs CPU/ });
+    const duo = page.getByRole("button", { name: /2 players/ });
+    await expect(cpu).toHaveAttribute("aria-pressed", "true");
+    await press(duo, touch);
+    await expect(duo).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(/P2: arrows move and aim/)).toBeVisible();
+    const sparky = page.getByRole("button", { name: /Sparky/ });
+    await press(sparky, touch);
+    await expect(sparky).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /Blocky/ })).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("button", { name: "Fight!" })).toBeVisible();
+  });
+});
+
+// Three.js in software rendering: runs in the webgl project (see playwright.config.ts).
+test.describe("Gonzgun fight @webgl", () => {
+  test.setTimeout(180_000);
+
+  test("fights the CPU with the keyboard", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto("/en/games/gonzgun");
+    await startWithKeyboard(page);
+    await page.getByRole("button", { name: "Fight!" }).click();
+    await expect(page.getByRole("img", { name: /basement arena/i })).toBeVisible();
+    await expect(page.getByRole("meter", { name: "Blocky: Health" })).toHaveAttribute("aria-valuenow", "100", { timeout: 60_000 });
+    await expect(page.getByRole("status")).toHaveText(/Blocky 0 KOs, Sparky 0 KOs/);
+    // Space would scroll the page if the game didn't take it.
+    const scrolled = await page.evaluate(() => window.scrollY);
+    await page.keyboard.down("Space");
+    await page.keyboard.down("KeyD");
+    await expect
+      .poll(async () => Number(await page.getByRole("meter", { name: "Sparky: Health" }).getAttribute("aria-valuenow")), { timeout: 90_000 })
+      .toBeLessThan(100);
+    await page.keyboard.up("KeyD");
+    await page.keyboard.up("Space");
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe("Garden Guard", () => {
   const cell = (page: Page, r: number, c: number) =>
     page.getByRole("button", { name: new RegExp(`^Row ${r}, column ${c},`) });

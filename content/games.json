@@ -1,5 +1,20 @@
 [
   {
+    "slug": "gonzgun",
+    "title": "Gonzgun",
+    "description": "A 3D blaster duel in a spooky basement. Blue splats everywhere!",
+    "instructions": "Face the CPU or a friend on one keyboard. Move to aim, fire, and dash to dodge. Grab health and triple shots. First to 5 knockouts wins!",
+    "icon": "crosshair",
+    "color": "accent",
+    "status": "new",
+    "featured": true,
+    "es": {
+      "title": "Gonzgun",
+      "description": "¡Duelo 3D de pistolas en un sótano, con salpicaduras azules!",
+      "instructions": "Enfrenta a la máquina o a un amigo en un teclado. Muévete para apuntar, dispara y esquiva. Toma vida y triple disparo. ¡Gana quien haga 5 K.O.!"
+    }
+  },
+  {
     "slug": "astro-storm",
     "title": "Astro Storm",
     "description": "Pilot a neon ship and blast the asteroid storm!",
