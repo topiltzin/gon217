@@ -9,7 +9,7 @@ async function expectNoSeriousViolations(page: Page) {
   expect(serious).toEqual([]);
 }
 
-for (const path of ["/en", "/es", "/nope", "/es/nope", "/en/player", "/es/player"]) {
+for (const path of ["/en", "/es", "/nope", "/es/nope", "/en/player", "/es/player", "/en/play", "/es/play", "/en/play/instructions", "/en/play/credits"]) {
   test(`${path} has no serious accessibility violations`, async ({ page }) => {
     await page.goto(path);
     await expectNoSeriousViolations(page);

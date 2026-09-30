@@ -1,0 +1,232 @@
+/* RUSTFALL retro look: pixel font, chunky bevelled panels, CRT-ish title screen. */
+
+.screen {
+  font-family: var(--font-pixel), ui-monospace, monospace;
+  color: #f5e6c8;
+  letter-spacing: 0.02em;
+}
+
+.screen :is(h1, h2, h3, button, a) {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+/* ---------- Title background: scrolling perspective grid, embers, flicker ---------- */
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #3a0d06 0%, #140605 55%, #050202 100%);
+}
+
+.grid {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: -10%;
+  height: 70%;
+  background-image:
+    linear-gradient(#ff4d1a55 2px, transparent 2px),
+    linear-gradient(90deg, #ff4d1a55 2px, transparent 2px);
+  background-size: 48px 48px;
+  transform: perspective(300px) rotateX(62deg);
+  transform-origin: 50% 0;
+  animation: grid-scroll 1.6s linear infinite;
+  mask-image: linear-gradient(to bottom, transparent, black 40%);
+}
+
+@keyframes grid-scroll {
+  to {
+    background-position: 0 48px;
+  }
+}
+
+.ember {
+  position: absolute;
+  bottom: -8px;
+  width: 4px;
+  height: 4px;
+  background: #ff9a3a;
+  box-shadow: 0 0 6px #ff6a1a;
+  animation: ember-rise linear infinite;
+}
+
+@keyframes ember-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(40px, -110vh);
+    opacity: 0;
+  }
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.28) 0 2px, transparent 2px 4px);
+}
+
+.logo {
+  font-size: clamp(2.2rem, 9vw, 5.5rem);
+  line-height: 1;
+  color: #ffb13b;
+  text-shadow:
+    4px 4px 0 #8a1a0a,
+    8px 8px 0 #2a0604,
+    0 0 24px #ff5a1a88;
+  animation: flicker 4s steps(1) infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  47% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.55;
+  }
+  49% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 0.8;
+  }
+  83% {
+    opacity: 1;
+  }
+}
+
+/* ---------- Buttons and panels ---------- */
+
+.button {
+  display: inline-flex;
+  min-height: 3.25rem;
+  min-width: 15rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.5rem;
+  font-size: 1rem;
+  color: #fff4dc;
+  background: #6b1d0e;
+  border: 4px solid #e0642a;
+  box-shadow:
+    inset -4px -4px 0 #3a0c05,
+    inset 4px 4px 0 #a8401e,
+    4px 4px 0 #000;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.button:hover {
+  background: #8e2812;
+}
+
+.button:active {
+  transform: translate(2px, 2px);
+  box-shadow:
+    inset -4px -4px 0 #3a0c05,
+    inset 4px 4px 0 #a8401e,
+    2px 2px 0 #000;
+}
+
+.panel {
+  background: rgb(18 8 6 / 0.92);
+  border: 4px solid #6b5a4a;
+  box-shadow:
+    inset -4px -4px 0 #2a2019,
+    inset 4px 4px 0 #8f7c68,
+    6px 6px 0 #000;
+}
+
+/* ---------- HUD ---------- */
+
+.hudNumber {
+  font-size: clamp(1.1rem, 2.6vw, 2rem);
+  color: #ff3b1f;
+  text-shadow:
+    2px 2px 0 #000,
+    -1px -1px 0 #000;
+}
+
+.hudLabel {
+  font-size: clamp(0.5rem, 0.9vw, 0.7rem);
+  color: #d8cfae;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.hitmarker {
+  animation: fade-fast 0.22s ease-out forwards;
+}
+
+.damage {
+  animation: fade-damage 0.6s ease-out forwards;
+}
+
+.message {
+  animation: fade-message 2.6s ease-in forwards;
+}
+
+.hint {
+  animation: fade-hint 8s ease-in forwards;
+}
+
+@keyframes fade-fast {
+  from {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.2);
+  }
+  to {
+    opacity: 0;
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+@keyframes fade-damage {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-message {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-hint {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid,
+  .ember,
+  .logo {
+    animation: none;
+  }
+  .ember {
+    display: none;
+  }
+}

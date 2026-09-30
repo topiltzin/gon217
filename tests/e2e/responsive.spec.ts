@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const WIDTHS = [375, 768, 1024, 1440];
-const PAGES = ["/en", "/es", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/es/games/super-jump", "/en/games/garden-guard", "/es/games/garden-guard", "/nope"];
+const PAGES = ["/en", "/es", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/es/games/super-jump", "/en/games/garden-guard", "/es/games/garden-guard", "/en/play", "/es/play", "/en/play/instructions", "/es/play/credits", "/nope"];
 
 // This spec sets its own viewports, so it only needs one project.
 test.beforeEach(({}, testInfo) => {

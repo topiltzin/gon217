@@ -4,6 +4,7 @@ import { FeaturedGames } from "@/components/FeaturedGames";
 import { GameCard } from "@/components/GameCard";
 import { Hero } from "@/components/Hero";
 import { HostWelcome } from "@/components/HostWelcome";
+import { PlayPromo } from "@/components/PlayPromo";
 import { VideoList } from "@/components/VideoList";
 import { ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
@@ -23,6 +24,8 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <Hero site={site} locale={lang} />
 
       <FeaturedGames games={featured} hostName={site.host.name} locale={lang} />
+
+      <PlayPromo locale={lang} />
 
       <section
         id="games"
