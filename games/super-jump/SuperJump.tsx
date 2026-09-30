@@ -4,7 +4,7 @@ import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "
 import { useT } from "@/components/I18nProvider";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
-import { VIEW_H, VIEW_W, drawFrame } from "./draw";
+import { SPRITE_URL, VIEW_H, VIEW_W, drawFrame } from "./draw";
 import { type Input, type JumpState, LEVEL_1, START_LIVES, createGame, parseLevel, step } from "./logic";
 
 const STEP = 1 / 60;
@@ -42,6 +42,9 @@ export default function SuperJump({ onFinish }: GameProps) {
     ctx.imageSmoothingEnabled = false;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const sprite = new Image();
+    sprite.src = SPRITE_URL;
+
     let state = createGame(parseLevel(LEVEL_1));
     let last = performance.now();
     let acc = 0;
@@ -56,7 +59,7 @@ export default function SuperJump({ onFinish }: GameProps) {
         state = step(state, input.current, STEP);
         acc -= STEP;
       }
-      drawFrame(ctx, state, reducedMotion);
+      drawFrame(ctx, state, reducedMotion, sprite);
       setHud((h) =>
         h.coins === state.coinsCollected && h.lives === state.lives && h.status === state.status
           ? h
@@ -151,7 +154,7 @@ export default function SuperJump({ onFinish }: GameProps) {
         height={VIEW_H * PIXEL_SCALE}
         role="img"
         aria-label={t.jump.screen}
-        className="aspect-[5/3] w-full touch-none rounded-(--radius-card) bg-[#1e1b4b] shadow-lg shadow-black/40 [image-rendering:pixelated]"
+        className="aspect-[5/3] w-full touch-none rounded-(--radius-card) bg-[#5c94fc] shadow-lg shadow-black/40 [image-rendering:pixelated]"
       />
       <div className="mt-4 flex items-center justify-between gap-4">
         <div className="flex gap-3">
