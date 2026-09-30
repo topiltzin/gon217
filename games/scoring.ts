@@ -12,6 +12,7 @@ export const gameScoring: Record<string, Scoring> = {
   "catch-it": { direction: "higher", unit: "stars" },
   "super-jump": { direction: "higher", unit: "coins" },
   "garden-guard": { direction: "higher", unit: "snails" },
+  "astro-storm": { direction: "higher", unit: "points" },
 };
 
 export function isBetter(

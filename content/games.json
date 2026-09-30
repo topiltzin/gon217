@@ -1,5 +1,20 @@
 [
   {
+    "slug": "astro-storm",
+    "title": "Astro Storm",
+    "description": "Pilot a neon ship and blast the asteroid storm!",
+    "instructions": "Turn and thrust to fly, and fire to split the asteroids into smaller rocks. Clear every wave, and grab gold stars for triple shot. Don't get hit!",
+    "icon": "rocket",
+    "color": "sky",
+    "status": "new",
+    "featured": true,
+    "es": {
+      "title": "Tormenta Astral",
+      "description": "¡Pilotea una nave neón y destruye la tormenta de asteroides!",
+      "instructions": "Gira y acelera para volar, y dispara para partir los asteroides. Limpia cada oleada y toma estrellas doradas para triple disparo. ¡Que no te golpeen!"
+    }
+  },
+  {
     "slug": "garden-guard",
     "title": "Garden Guard",
     "description": "Plant helpers to stop the hungry snails!",

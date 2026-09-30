@@ -15,7 +15,7 @@ No NEEDS CLARIFICATION items remained after the spec; the decisions below resolv
 
 ## R3. Games and state
 - **Decision**: Three games — Memory Match, Catch It (tap/reaction, timed 30 s), Tic-Tac-Toe (vs simple computer, or two players on one device). Each has pure logic in `logic.ts` (deterministic, unit-testable, injectable RNG) and a thin React UI. DOM/CSS rendering, no canvas or engine.
-- **Rationale**: Easy for ages 6–12, quick rounds, natural touch/keyboard support, accessible by default with real buttons and ARIA labels. Pure logic gives cheap, reliable tests.
+- **Rationale**: Easy for ages 10–14, quick rounds, natural touch/keyboard support, accessible by default with real buttons and ARIA labels. Pure logic gives cheap, reliable tests.
 - **Alternatives**: Canvas/Phaser (heavier, harder to make accessible); Three.js (spec scopes out full 3D).
 
 ## R4. Scores and persistence

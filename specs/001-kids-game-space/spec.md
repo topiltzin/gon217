@@ -29,7 +29,7 @@ A kid plays one of a small set of simple games. Each game explains itself in a s
 
 **Why this priority**: Games are the reason friends come and return. The initial set is at least three simple games (see Assumptions for the proposed set).
 
-**Independent Test**: For each game, a kid aged 6–12 can start, finish a round, and replay it without adult help.
+**Independent Test**: For each game, a kid aged 10–14 can start, finish a round, and replay it without adult help.
 
 **Acceptance Scenarios**:
 
@@ -167,7 +167,7 @@ This section records the design input that shapes scope; it is guidance for plan
 ### Measurable Outcomes
 
 - **SC-001**: A first-time visitor can start playing a game within 10 seconds of opening the site, with no instruction beyond what is on screen.
-- **SC-002**: At least 90% of kids aged 6–12 in an informal friends-and-family test can finish a round of each game and replay it without adult help.
+- **SC-002**: At least 90% of kids aged 10–14 in an informal friends-and-family test can finish a round of each game and replay it without adult help.
 - **SC-003**: The home page shows meaningful content in under 3 seconds on a typical mobile connection, and a game starts in under 2 seconds after it is chosen.
 - **SC-004**: The site is fully usable (no clipped content, no sideways scrolling, controls easily tappable) at 375, 768, 1024, and 1440 px wide.
 - **SC-005**: All pages and games pass a review for keyboard-only use, visible focus, 4.5:1 text contrast, and reduced-motion support with zero critical failures.
@@ -177,7 +177,7 @@ This section records the design input that shapes scope; it is guidance for plan
 
 ## Assumptions
 
-- **Audience**: Kids roughly 6–12 years old, mostly Gonzalo's friends, usually opening a shared link on a phone, tablet, or laptop, often with a parent nearby. Content is in English at launch.
+- **Audience**: Kids roughly 10–14 years old, mostly Gonzalo's friends, usually opening a shared link on a phone, tablet, or laptop, often with a parent nearby. Content is in English at launch.
 - **Launch game set** (proposed, each quick to learn, replaced or extended later): a memory card-matching game, a tap/reaction "catch it" game, and a simple classic such as tic-tac-toe or a colour/pattern puzzle. Final selection can be adjusted during planning.
 - **No accounts, no social features**: to protect kids' privacy and keep scope small, there is no sign-up, login, chat, comments, leaderboard shared across players, or user-generated content. Best scores are stored only on the player's own device.
 - **Host content updates**: Gonzalo (or a trusted helper) updates announcements and featured games through a simple update process he controls. A built-in admin screen inside the site is out of scope for the first release and can be a future iteration.

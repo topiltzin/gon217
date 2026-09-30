@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-const PAGES = ["/en", "/es", "/en/player", "/en/play", "/en/play/instructions", "/en/play/game", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/en/games/garden-guard"];
+const PAGES = ["/en", "/es", "/en/player", "/en/play", "/en/play/instructions", "/en/play/game", "/en/games/memory-match", "/en/games/catch-it", "/en/games/tic-tac-toe", "/en/games/super-jump", "/en/games/garden-guard", "/en/games/astro-storm"];
 
 // Logging in is optional: nobody gets a cookie until they choose to create a player or log in.
 test("no third-party requests and no cookies", async ({ page, context, baseURL }) => {
+  test.setTimeout(120_000);
   const origin = new URL(baseURL!).origin;
   const external: string[] = [];
   page.on("request", (req) => {

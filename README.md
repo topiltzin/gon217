@@ -1,6 +1,6 @@
 # Gonzalo's Game Space
 
-A bright, no-login game site for kids, hosted by Gonzalo and deployed on Vercel. Friends open a link, pick a game, and play. There are no accounts, chat, ads or tracking. Best scores stay in each player's own browser.
+A game site for kids and young teens (about 10–14), hosted by Gonzalo and deployed on Vercel. Friends open a link, pick a game, and play. Logging in is optional and only saves best scores and leaderboard places; there is no chat, ads or tracking. Without logging in, best scores stay in each player's own browser.
 
 ## Run it
 

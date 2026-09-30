@@ -26,4 +26,8 @@ export const gameRegistry: Record<string, GameEntry> = {
     load: () => import("./garden-guard/GardenGuard"),
     scoring: gameScoring["garden-guard"],
   },
+  "astro-storm": {
+    load: () => import("./astro-storm/AstroStorm"),
+    scoring: gameScoring["astro-storm"],
+  },
 };

@@ -16,7 +16,7 @@ for (const path of ["/en", "/es", "/nope", "/es/nope", "/en/player", "/es/player
   });
 }
 
-for (const slug of ["memory-match", "catch-it", "tic-tac-toe", "super-jump", "garden-guard"]) {
+for (const slug of ["memory-match", "catch-it", "tic-tac-toe", "super-jump", "garden-guard", "astro-storm"]) {
   test(`${slug} intro and play screens have no serious violations`, async ({ page }) => {
     await page.goto(`/en/games/${slug}`);
     await expectNoSeriousViolations(page);

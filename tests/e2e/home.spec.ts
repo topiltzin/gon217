@@ -7,7 +7,7 @@ test.describe("home page", () => {
     await expect(page.getByText(/hosted by gonzalo/i)).toBeVisible();
 
     const grid = page.getByRole("region", { name: /all games/i });
-    for (const title of ["Garden Guard", "Super Jump", "Memory Match", "Catch It!", "Tic-Tac-Toe", "Color Quest"]) {
+    for (const title of ["Astro Storm", "Garden Guard", "Super Jump", "Memory Match", "Catch It!", "Tic-Tac-Toe", "Color Quest"]) {
       await expect(grid.getByRole("heading", { name: title })).toBeVisible();
     }
   });

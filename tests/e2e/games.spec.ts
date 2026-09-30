@@ -186,6 +186,41 @@ test.describe("Super Jump", () => {
   });
 });
 
+test.describe("Astro Storm", () => {
+  const status = (page: Page) => page.getByRole("status");
+
+  test("keyboard: spin and fire until an asteroid breaks", async ({ page }) => {
+    await page.goto("/en/games/astro-storm");
+    await startWithKeyboard(page);
+    await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
+    await expect(status(page)).toHaveText(/^0 points, 3 ships left, wave 1$/);
+    await page.keyboard.down("ArrowLeft");
+    await page.keyboard.down("Space");
+    await expect(status(page)).toHaveText(/^[1-9]\d* points/, { timeout: 30_000 });
+    await page.keyboard.up("Space");
+    await page.keyboard.up("ArrowLeft");
+  });
+
+  test("on-screen buttons fly and fire", async ({ page }, testInfo) => {
+    await page.goto("/en/games/astro-storm");
+    await press(page.getByRole("button", { name: "Play", exact: true }), testInfo.project.name === "mobile");
+    for (const name of ["Turn left", "Turn right", "Thrust", "Fire"]) {
+      await expect(page.getByRole("button", { name })).toBeVisible();
+    }
+    const fire = (await page.getByRole("button", { name: "Fire" }).boundingBox())!;
+    const turn = (await page.getByRole("button", { name: "Turn right" }).boundingBox())!;
+    // Buttons act while held: turn a little, then hold fire.
+    await page.mouse.move(turn.x + turn.width / 2, turn.y + turn.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(300);
+    await page.mouse.up();
+    await page.mouse.move(fire.x + fire.width / 2, fire.y + fire.height / 2);
+    await page.mouse.down();
+    await expect(status(page)).toHaveText(/points, 3 ships left/);
+    await page.mouse.up();
+  });
+});
+
 test.describe("Garden Guard", () => {
   const cell = (page: Page, r: number, c: number) =>
     page.getByRole("button", { name: new RegExp(`^Row ${r}, column ${c},`) });

@@ -26,7 +26,7 @@ export function negotiateLocale(acceptLanguage: string | null): Locale {
   return ranked.map((entry) => entry.lang).find(isLocale) ?? DEFAULT_LOCALE;
 }
 
-export type ScoreUnit = "moves" | "stars" | "coins" | "snails";
+export type ScoreUnit = "moves" | "stars" | "coins" | "snails" | "points";
 
 const en = {
   languageName: "English",
@@ -72,7 +72,7 @@ const en = {
     over: (title: string) => `${title}: round over`,
     playAgain: "Play again",
   },
-  units: { moves: "moves", stars: "stars", coins: "coins", snails: "snails" } satisfies Record<ScoreUnit, string>,
+  units: { moves: "moves", stars: "stars", coins: "coins", snails: "snails", points: "points" } satisfies Record<ScoreUnit, string>,
   player: {
     title: "My player",
     logIn: "Log in",
@@ -103,6 +103,21 @@ const en = {
     leaderboard: "Top players",
     noLeaders: "No scores yet. Log in and be the first!",
     you: "you",
+  },
+  astro: {
+    screen: "Game screen: your ship among drifting asteroids.",
+    score: "Score",
+    lives: "Ships",
+    wave: (n: number) => `Wave ${n}`,
+    status: (score: number, lives: number, wave: number) =>
+      `${score} points, ${lives} ${lives === 1 ? "ship" : "ships"} left, wave ${wave}`,
+    left: "Turn left",
+    right: "Turn right",
+    thrust: "Thrust",
+    fire: "Fire",
+    keyboard: "Keyboard: ← → or A/D turn, ↑ or W thrust, Space fires. Grab the gold star for triple shot!",
+    over: "Ship destroyed!",
+    detail: (score: number, wave: number) => `You scored ${score} points and reached wave ${wave}.`,
   },
   fps: {
     title: "RUSTFALL",
@@ -306,7 +321,7 @@ const es: Dictionary = {
     over: (title) => `${title}: fin de la ronda`,
     playAgain: "Jugar otra vez",
   },
-  units: { moves: "movimientos", stars: "estrellas", coins: "monedas", snails: "caracoles" },
+  units: { moves: "movimientos", stars: "estrellas", coins: "monedas", snails: "caracoles", points: "puntos" },
   player: {
     title: "Mi jugador",
     logIn: "Entrar",
@@ -338,6 +353,20 @@ const es: Dictionary = {
     leaderboard: "Campeones",
     noLeaders: "Todavía no hay récords. ¡Entra y sé el primero!",
     you: "tú",
+  },
+  astro: {
+    screen: "Pantalla del juego: tu nave entre asteroides a la deriva.",
+    score: "Puntos",
+    lives: "Naves",
+    wave: (n) => `Oleada ${n}`,
+    status: (score, lives, wave) => `${score} puntos, ${lives} ${lives === 1 ? "nave" : "naves"}, oleada ${wave}`,
+    left: "Girar a la izquierda",
+    right: "Girar a la derecha",
+    thrust: "Propulsión",
+    fire: "Disparar",
+    keyboard: "Teclado: ← → o A/D giran, ↑ o W acelera, Espacio dispara. ¡Toma la estrella dorada para triple disparo!",
+    over: "¡Nave destruida!",
+    detail: (score, wave) => `Hiciste ${score} puntos y llegaste a la oleada ${wave}.`,
   },
   fps: {
     title: "RUSTFALL",
