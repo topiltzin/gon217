@@ -190,7 +190,24 @@ export function tagTexture(text: string, color: string): Texture {
   return texture(c);
 }
 
-/* ---------- Blocky (the block-world hero) ---------- */
+/** A comic-book sound word: yellow letters, thick blue outline, dark shadow. */
+export function wordTexture(word: string): Texture {
+  const { c, g } = canvas(256, 128);
+  g.font = "italic 900 72px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.lineJoin = "round";
+  g.fillStyle = "rgba(0,0,0,0.45)";
+  g.fillText(word, 134, 72, 230);
+  g.strokeStyle = "#1d4ed8";
+  g.lineWidth = 16;
+  g.strokeText(word, 128, 64, 230);
+  g.fillStyle = "#facc15";
+  g.fillText(word, 128, 64, 230);
+  return texture(c);
+}
+
+/* ---------- Block-world people (Blocky and Pixel) ---------- */
 
 type Pixels = string[];
 
@@ -207,50 +224,70 @@ function pixelArt(rows: Pixels, palette: Record<string, string>): Texture {
   return texture(c, { pixel: true });
 }
 
-const HEAD_PALETTE = {
-  h: "#4a2f1b", // hair
-  H: "#3a2412",
-  s: "#c89370", // skin
-  S: "#b07b58",
-  w: "#ffffff",
-  e: "#4b3aa8", // eyes
-  n: "#8f5a3e", // nose
-  m: "#6b3d26", // mouth / beard
+/** Colours and 8×8 head rows for a block-world person. Letters: h/H hair, s/S skin, w eye white, e iris, n nose, m mouth. */
+export type BlockLook = {
+  palette: { h: string; H: string; s: string; S: string; w: string; e: string; n: string; m: string };
+  shirt: [string, string];
+  pants: [string, string];
+  shoes: [string, string];
+  face: Pixels;
+  side: Pixels;
+  back: Pixels;
+  /** Long hair hanging down the back of the head. */
+  longHair: boolean;
 };
 
-export function blockyHead() {
-  const face = pixelArt(
-    ["hhhhhhhh", "hhHhhhhh", "hsssssSh", "swessews", "ssssssss", "sssnnsss", "ssmmmmss", "ssmsssms"],
-    HEAD_PALETTE,
-  );
-  const side = pixelArt(["hhhhhhhh", "hhhhhhhh", "hhhhhsss", "hhhhssss", "hhhsssss", "hhssssss", "hsssssss", "ssssssss"], HEAD_PALETTE);
-  const back = pixelArt(["hhhhhhhh", "hhhhHhhh", "hhhhhhhh", "hhHhhhhh", "hhhhhhHh", "hhhhhhhh", "Hhhhhhhh", "hhhhhhhh"], HEAD_PALETTE);
-  const top = pixelArt(["hhhhhhhh", "hHhhhhhh", "hhhhhHhh", "hhhhhhhh", "hhhHhhhh", "hhhhhhhh", "hhhhhhHh", "hhhhhhhh"], HEAD_PALETTE);
-  const bottom = pixelArt(["ssssssss", "ssssssss", "ssssssss", "ssssssss", "ssssssss", "ssssssss", "ssssssss", "ssssssss"], HEAD_PALETTE);
-  return { face, side, back, top, bottom };
+const PLAIN_BACK = ["hhhhhhhh", "hhhhHhhh", "hhhhhhhh", "hhHhhhhh", "hhhhhhHh", "hhhhhhhh", "Hhhhhhhh", "hhhhhhhh"];
+
+export const BLOCKY_LOOK: BlockLook = {
+  palette: { h: "#4a2f1b", H: "#3a2412", s: "#c89370", S: "#b07b58", w: "#ffffff", e: "#4b3aa8", n: "#8f5a3e", m: "#6b3d26" },
+  shirt: ["#27a7b5", "#1f8f9b"],
+  pants: ["#3c3caa", "#33338f"],
+  shoes: ["#6e6e6e", "#5a5a5a"],
+  face: ["hhhhhhhh", "hhHhhhhh", "hsssssSh", "swessews", "ssssssss", "sssnnsss", "ssmmmmss", "ssmsssms"],
+  side: ["hhhhhhhh", "hhhhhhhh", "hhhhhsss", "hhhhssss", "hhhsssss", "hhssssss", "hsssssss", "ssssssss"],
+  back: PLAIN_BACK,
+  longHair: false,
+};
+
+export const PIXEL_LOOK: BlockLook = {
+  palette: { h: "#e2701f", H: "#c75a12", s: "#f1c9a5", S: "#e3b08a", w: "#ffffff", e: "#2f9e44", n: "#e3b08a", m: "#e0707a" },
+  shirt: ["#5cb85c", "#4a9d4a"],
+  pants: ["#7a5230", "#664325"],
+  shoes: ["#5a5a5a", "#474747"],
+  face: ["hhhhhhhh", "hhhhhhHh", "hhhhssss", "hwessewh", "hssssssh", "hsssSssh", "hssmmssh", "hsssssss"],
+  side: ["hhhhhhhh", "hhhhhhhh", "hhhhhhhh", "hhhhhhss", "hhhhhhss", "hhhhhsss", "hhhhhhss", "hhhhhhhs"],
+  back: PLAIN_BACK,
+  longHair: true,
+};
+
+export function blockHead(look: BlockLook) {
+  const p = look.palette;
+  const fill = (ch: string) => Array.from({ length: 8 }, () => ch.repeat(8));
+  return {
+    face: pixelArt(look.face, p),
+    side: pixelArt(look.side, p),
+    back: pixelArt(look.back, p),
+    top: pixelArt(["hhhhhhhh", "hHhhhhhh", "hhhhhHhh", "hhhhhhhh", "hhhHhhhh", "hhhhhhhh", "hhhhhhHh", "hhhhhhhh"], p),
+    bottom: pixelArt(fill("s"), p),
+    hair: pixelArt(PLAIN_BACK, p),
+  };
 }
 
-export function blockyShirt(): Texture {
-  return pixelArt(
-    ["sssSsSss", "cccssccc", "cccccccc", "cCcccccc", "cccccCcc", "cccccccc", "ccCccccc", "cccccccc"],
-    { s: "#c89370", S: "#b07b58", c: "#27a7b5", C: "#1f8f9b" },
-  );
+export function blockShirt(look: BlockLook): Texture {
+  const [c, C] = look.shirt;
+  const { s, S } = look.palette;
+  return pixelArt(["sssSsSss", "cccssccc", "cccccccc", "cCcccccc", "cccccCcc", "cccccccc", "ccCccccc", "cccccccc"], { s, S, c, C });
 }
 
-export function blockyPants(): Texture {
-  return pixelArt(["pppppppp", "pPpppppp", "pppppPpp", "pppppppp", "ppPppppp", "pppppppp", "gggggggg", "gGgggggg"], {
-    p: "#3c3caa",
-    P: "#33338f",
-    g: "#6e6e6e",
-    G: "#5a5a5a",
-  });
+export function blockPants(look: BlockLook): Texture {
+  const [p, P] = look.pants;
+  const [g, G] = look.shoes;
+  return pixelArt(["pppppppp", "pPpppppp", "pppppPpp", "pppppppp", "ppPppppp", "pppppppp", "gggggggg", "gGgggggg"], { p, P, g, G });
 }
 
-export function blockyArm(): Texture {
-  return pixelArt(["cccc", "cCcc", "cccc", "ssss", "ssss", "sSss", "ssss", "ssss"], {
-    c: "#27a7b5",
-    C: "#1f8f9b",
-    s: "#c89370",
-    S: "#b07b58",
-  });
+export function blockArm(look: BlockLook): Texture {
+  const [c, C] = look.shirt;
+  const { s, S } = look.palette;
+  return pixelArt(["cccc", "cCcc", "cccc", "ssss", "ssss", "sSss", "ssss", "ssss"], { c, C, s, S });
 }

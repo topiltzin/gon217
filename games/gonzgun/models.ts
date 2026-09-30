@@ -14,9 +14,11 @@ import {
   type Material,
   type Texture,
 } from "three";
-import { blockyArm, blockyHead, blockyPants, blockyShirt } from "./art";
+import { BLOCKY_LOOK, PIXEL_LOOK, blockArm, blockHead, blockPants, blockShirt, type BlockLook } from "./art";
 
-export type Character = "blocky" | "sparky";
+import type { Character } from "./characters";
+
+export type { Character };
 
 /** A fighter's 3D body. Built facing +z; `root` is placed and turned by the view. */
 export type FighterModel = {
@@ -26,6 +28,8 @@ export type FighterModel = {
   /** Everything that flashes white when hit. */
   materials: MeshStandardMaterial[];
   animate: (time: number, walk: number) => void;
+  /** Optional look for when triple shot is on (Turbo's golden hair). */
+  power?: (on: boolean, time: number) => void;
   dispose: () => void;
 };
 
@@ -61,52 +65,60 @@ function makeGun(accent: number) {
   return { gun, muzzle, materials: [dark, bright] };
 }
 
-/** The block-world hero: cube head, teal shirt, blue jeans. 1.6 m tall. */
-function makeBlocky(): FighterModel {
+/** A block-world person (Blocky or Pixel): cube head, shirt, trousers. 1.6 m tall. */
+function makeBlockPerson(look: BlockLook, accent: number, slimArms: boolean): FighterModel {
   const root = new Group();
-  const head = blockyHead();
-  const shirt = blockyShirt();
-  const pants = blockyPants();
-  const armTex = blockyArm();
-  const skin = mat(0xc89370);
-  const teal = mat(0x27a7b5);
-  const jeans = mat(0x3c3caa);
+  const head = blockHead(look);
+  const skin = mat(look.palette.s);
+  const top = mat(look.shirt[0]);
+  const trousers = mat(look.pants[0]);
   const headMats = [head.side, head.side, head.top, head.bottom, head.face, head.back].map((t) => mat(0, t));
-  const shirtMat = mat(0, shirt);
-  const pantsMat = mat(0, pants);
-  const armMat = mat(0, armTex);
-  const materials = [...headMats, shirtMat, pantsMat, armMat, skin, teal, jeans];
-
+  const shirtMat = mat(0, blockShirt(look));
+  const pantsMat = mat(0, blockPants(look));
+  const armMat = mat(0, blockArm(look));
+  const hairMat = mat(0, head.hair);
+  const materials = [...headMats, shirtMat, pantsMat, armMat, hairMat, skin, top, trousers];
   const body = new Group();
   root.add(body);
 
   const headMesh = mesh(new BoxGeometry(0.4, 0.4, 0.4), headMats);
   headMesh.position.y = 1.4;
-  const torso = mesh(new BoxGeometry(0.4, 0.6, 0.2), [teal, teal, teal, teal, shirtMat, teal]);
+  const torso = mesh(new BoxGeometry(0.4, 0.6, 0.2), [top, top, top, top, shirtMat, top]);
   torso.position.y = 0.9;
   body.add(headMesh, torso);
+  if (look.longHair) {
+    // Hair down to the shoulders, and a side ponytail.
+    const hair = mesh(new BoxGeometry(0.42, 0.52, 0.08), hairMat);
+    hair.position.set(0, 1.32, -0.2);
+    const tail = mesh(new BoxGeometry(0.1, 0.34, 0.1), hairMat);
+    tail.position.set(0.24, 1.3, -0.12);
+    tail.rotation.z = 0.2;
+    body.add(hair, tail);
+  }
 
-  const limb = (x: number, y: number, m: Material | Material[]) => {
+  const limb = (x: number, y: number, m: Material | Material[], w = 0.2) => {
     const pivot = new Group();
     pivot.position.set(x, y, 0);
-    const geo = new BoxGeometry(0.2, 0.6, 0.2);
+    const geo = new BoxGeometry(w, 0.6, 0.2);
     geo.translate(0, -0.3, 0);
     pivot.add(mesh(geo, m));
     body.add(pivot);
     return pivot;
   };
-  const armSide = [teal, teal, teal, skin, armMat, armMat];
-  const legSide = [pantsMat, pantsMat, jeans, jeans, pantsMat, pantsMat];
-  const leftArm = limb(0.3, 1.2, armSide);
-  const rightArm = limb(-0.3, 1.2, armSide);
+  const armSide = [top, top, top, skin, armMat, armMat];
+  const legSide = [pantsMat, pantsMat, trousers, trousers, pantsMat, pantsMat];
+  const armW = slimArms ? 0.15 : 0.2;
+  const armX = 0.2 + armW / 2;
+  const leftArm = limb(armX, 1.2, armSide, armW);
+  const rightArm = limb(-armX, 1.2, armSide, armW);
   const leftLeg = limb(0.1, 0.6, legSide);
   const rightLeg = limb(-0.1, 0.6, legSide);
   // Right arm points the blaster forward; the left one helps steady it.
   rightArm.rotation.x = -Math.PI / 2;
   leftArm.rotation.set(-1.25, 0, -0.45);
 
-  const { gun, muzzle, materials: gunMats } = makeGun(0xfacc15);
-  gun.position.set(-0.3, 1.18, 0.62);
+  const { gun, muzzle, materials: gunMats } = makeGun(accent);
+  gun.position.set(-armX, 1.18, 0.62);
   body.add(gun);
 
   return {
@@ -236,8 +248,158 @@ function makeSparky(): FighterModel {
   };
 }
 
+/**
+ * A martial-arts hero with wild spiky black hair, an orange training suit,
+ * blue undershirt, belt, wristbands and boots. He fires energy blasts from his
+ * hands instead of a blaster, and his hair turns gold while triple shot is on.
+ */
+function makeTurbo(): FighterModel {
+  const root = new Group();
+  const skin = mat(0xf2c29b, undefined, { roughness: 0.6 });
+  const orange = mat(0xf97316, undefined, { roughness: 0.7 });
+  const blue = mat(0x1e40af, undefined, { roughness: 0.6 });
+  const hair = mat(0x111111, undefined, { roughness: 0.45 });
+  const black = mat(0x111111, undefined, { roughness: 0.3 });
+  const white = mat(0xffffff, undefined, { roughness: 0.3 });
+  const energy = new MeshStandardMaterial({ color: 0x9be7ff, emissive: 0x38bdf8, emissiveIntensity: 1.6, transparent: true, opacity: 0.9 });
+  const materials = [skin, orange, blue, hair, black, white];
+
+  const body = new Group();
+  root.add(body);
+
+  const legs: Group[] = [];
+  for (const side of [-1, 1]) {
+    const leg = new Group();
+    leg.position.set(side * 0.13, 0.72, 0);
+    const pant = mesh(new CylinderGeometry(0.1, 0.13, 0.52, 12), orange);
+    pant.position.y = -0.24;
+    const boot = mesh(new CylinderGeometry(0.1, 0.1, 0.22, 12), blue);
+    boot.position.y = -0.58;
+    const toe = mesh(new BoxGeometry(0.16, 0.08, 0.24), blue);
+    toe.position.set(0, -0.66, 0.05);
+    leg.add(pant, boot, toe);
+    body.add(leg);
+    legs.push(leg);
+  }
+
+  const torso = mesh(new CylinderGeometry(0.24, 0.2, 0.6, 16), orange);
+  torso.scale.z = 0.72;
+  torso.position.y = 1.02;
+  const belt = mesh(new CylinderGeometry(0.215, 0.215, 0.08, 16), blue);
+  belt.scale.z = 0.75;
+  belt.position.y = 0.76;
+  const knot = mesh(new BoxGeometry(0.1, 0.14, 0.04), blue);
+  knot.position.set(0.1, 0.72, 0.16);
+  const collar = mesh(new ConeGeometry(0.1, 0.2, 3), blue);
+  collar.rotation.set(Math.PI / 2 + 0.3, 0, Math.PI);
+  collar.position.set(0, 1.24, 0.14);
+  const badge = mesh(new CylinderGeometry(0.06, 0.06, 0.02, 16), white);
+  badge.rotation.x = Math.PI / 2;
+  badge.position.set(-0.12, 1.12, 0.16);
+  body.add(torso, belt, knot, collar, badge);
+
+  // Both arms push forward, palms together, for the energy blast.
+  for (const side of [-1, 1]) {
+    const arm = new Group();
+    arm.position.set(side * 0.27, 1.22, 0);
+    arm.rotation.order = "YXZ";
+    arm.rotation.set(-1.35, -side * 0.4, 0);
+    const upper = mesh(new CylinderGeometry(0.075, 0.07, 0.5, 10), skin);
+    upper.position.y = -0.25;
+    const band = mesh(new CylinderGeometry(0.08, 0.08, 0.1, 10), blue);
+    band.position.y = -0.46;
+    const hand = mesh(new SphereGeometry(0.08, 10, 8), skin);
+    hand.position.y = -0.56;
+    arm.add(upper, band, hand);
+    body.add(arm);
+  }
+  const ball = mesh(new SphereGeometry(0.1, 14, 10), energy);
+  ball.castShadow = false;
+  ball.position.set(0, 1.12, 0.58);
+  body.add(ball);
+  const muzzle = new Object3D();
+  muzzle.position.set(0, 1.12, 0.62);
+  body.add(muzzle);
+
+  const head = new Group();
+  head.position.y = 1.52;
+  body.add(head);
+  const face = mesh(new SphereGeometry(0.2, 20, 16), skin);
+  face.scale.set(0.95, 1.08, 1);
+  head.add(face);
+  for (const side of [-1, 1]) {
+    const eye = mesh(new SphereGeometry(0.045, 10, 8), white);
+    eye.scale.set(1, 1.2, 0.5);
+    eye.position.set(side * 0.075, 0.02, 0.18);
+    const pupil = mesh(new SphereGeometry(0.025, 8, 6), black);
+    pupil.position.set(side * 0.07, 0.02, 0.2);
+    const brow = mesh(new BoxGeometry(0.09, 0.02, 0.02), black);
+    brow.position.set(side * 0.075, 0.09, 0.19);
+    brow.rotation.z = side * -0.35;
+    head.add(eye, pupil, brow);
+  }
+  const mouth = mesh(new BoxGeometry(0.07, 0.015, 0.02), black);
+  mouth.position.set(0, -0.1, 0.19);
+  head.add(mouth);
+  // Spiky hair: cones fanning up, out and back.
+  const spikes: [number, number, number, number, number][] = [
+    [0, 0.2, -0.02, 0, 0],
+    [-0.12, 0.18, 0, 0, 0.6],
+    [0.12, 0.18, 0, 0, -0.6],
+    [-0.17, 0.08, -0.02, 0, 1.2],
+    [0.17, 0.08, -0.02, 0, -1.2],
+    [0, 0.16, -0.12, -0.7, 0],
+    [-0.1, 0.1, -0.15, -0.9, 0.5],
+    [0.1, 0.1, -0.15, -0.9, -0.5],
+    [0, 0.02, -0.18, -1.4, 0],
+    [-0.06, 0.16, 0.12, 0.5, 0.3],
+    [0.07, 0.15, 0.13, 0.5, -0.4],
+  ];
+  for (const [x, y, z, rx, rz] of spikes) {
+    const spike = mesh(new ConeGeometry(0.07, 0.3, 6), hair);
+    spike.position.set(x, y, z);
+    spike.rotation.set(rx, 0, rz);
+    spike.translateY(0.1);
+    head.add(spike);
+  }
+  const cap = mesh(new SphereGeometry(0.205, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.2), hair);
+  cap.position.y = 0.02;
+  head.add(cap);
+
+  const dark = new Color(0x111111);
+  const gold = new Color(0xffd21f);
+  return {
+    root,
+    muzzle,
+    materials,
+    animate(time, walk) {
+      const swing = Math.sin(time * 11) * 0.6 * walk;
+      legs[0].rotation.x = swing;
+      legs[1].rotation.x = -swing;
+      body.position.y = Math.abs(Math.sin(time * 11)) * 0.05 * walk;
+      ball.scale.setScalar(0.85 + Math.sin(time * 18) * 0.15);
+    },
+    power(on, time) {
+      hair.color.copy(on ? gold : dark);
+      hair.emissive.copy(on ? gold : dark);
+      hair.emissiveIntensity = on ? 0.5 + Math.sin(time * 12) * 0.2 : 0;
+      energy.emissive.set(on ? 0xffd21f : 0x38bdf8);
+    },
+    dispose: () => disposeTree(root),
+  };
+}
+
 export function makeFighterModel(kind: Character): FighterModel {
-  return kind === "blocky" ? makeBlocky() : makeSparky();
+  switch (kind) {
+    case "blocky":
+      return makeBlockPerson(BLOCKY_LOOK, 0xfacc15, false);
+    case "pixel":
+      return makeBlockPerson(PIXEL_LOOK, 0xf472b6, true);
+    case "sparky":
+      return makeSparky();
+    case "turbo":
+      return makeTurbo();
+  }
 }
 
 export function setFlash(model: FighterModel, amount: number, tint = new Color(0xffffff)) {

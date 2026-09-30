@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { type ComponentProps, useEffect, useEffectEvent, useState } from "react";
 import { useT } from "@/components/I18nProvider";
 import { tileClass } from "@/components/colors";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
-import type { CardColor, IconName } from "@/lib/icon-names";
+import type { CardColor } from "@/lib/icon-names";
 import { createGame, flip, hideMismatch, isWon } from "./logic";
 
-type SymbolName = "star" | "rocket" | "zap" | "puzzle" | "palette" | "brain";
+type SymbolName = "star" | "rocket" | "zap" | "puzzle" | "palette" | "brain" | "heart" | "crown" | "sun" | "snail";
 
-const SYMBOLS: Record<SymbolName, { icon: IconName; color: CardColor }> = {
+// 10 pairs, 20 cards. Colours repeat, but every symbol has its own shape (never colour alone).
+const SYMBOLS: Record<SymbolName, { icon: ComponentProps<typeof Icon>["name"]; color: CardColor }> = {
   star: { icon: "star", color: "sun" },
   rocket: { icon: "rocket", color: "sky" },
   zap: { icon: "zap", color: "accent" },
   puzzle: { icon: "puzzle", color: "mint" },
   palette: { icon: "palette", color: "secondary" },
   brain: { icon: "brain", color: "primary" },
+  heart: { icon: "heart", color: "accent" },
+  crown: { icon: "crown", color: "sun" },
+  sun: { icon: "sun", color: "sky" },
+  snail: { icon: "snail", color: "mint" },
 };
 
 const MISMATCH_MS = 900;
@@ -57,7 +62,7 @@ export default function MemoryMatch({ onFinish }: GameProps) {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex justify-center gap-3 font-display text-xl font-semibold">
         <span className="rounded-2xl bg-card px-4 py-2">{t.memory.moves(state.moves)}</span>
         <span className="rounded-2xl bg-card px-4 py-2">{t.memory.pairs(matchedPairs, pairs)}</span>
@@ -65,7 +70,7 @@ export default function MemoryMatch({ onFinish }: GameProps) {
       <p role="status" className="sr-only">
         {announcement}
       </p>
-      <ul className="grid grid-cols-4 gap-2 sm:gap-4">
+      <ul className="grid grid-cols-4 gap-2 sm:grid-cols-5 sm:gap-3">
         {state.cards.map((card, i) => {
           const name = card.symbol as SymbolName;
           const symbol = SYMBOLS[name];
@@ -88,7 +93,7 @@ export default function MemoryMatch({ onFinish }: GameProps) {
                 }`}
               >
                 <span key={card.state === "hidden" ? "back" : "face"} className="animate-pop">
-                  <Icon name={faceUp ? symbol.icon : "sparkles"} className="size-9 sm:size-12" />
+                  <Icon name={faceUp ? symbol.icon : "sparkles"} className="size-9 sm:size-11" />
                 </span>
               </button>
             </li>

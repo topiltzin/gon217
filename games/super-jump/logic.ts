@@ -2,8 +2,11 @@
  * Super Jump: a tiny side-scroller. Pure functions over plain data so the
  * physics can be unit-tested; the React component only feeds input and draws.
  *
- * Level legend: '#' ground, 'B' brick (both solid), 'o' coin, 'e' slime,
- * 'P' player start, 'C' checkpoint, 'F' flag, '.' empty.
+ * Level legend: '#' ground, 'B' brick, 'Q' question block (all solid),
+ * 'o' coin, 'e' slime, 'P' player start, 'C' checkpoint, 'F' flag, '.' empty.
+ *
+ * Jumping into a brick from below smashes it (and squashes any slime on top);
+ * a question block gives a coin once, then stays as a plain used block.
  */
 
 export const TILE = 16;
@@ -32,6 +35,7 @@ export type Level = {
   /** solid[y][x] */
   solid: boolean[][];
   bricks: Point[];
+  questions: Point[];
   start: Point;
   flag: Point;
   checkpoint: Point | null;
@@ -46,6 +50,11 @@ type Body = { x: number; y: number; w: number; h: number; vx: number; vy: number
 export type Player = Body & { facing: 1 | -1 };
 export type Enemy = Body & { alive: boolean };
 export type Coin = Point & { taken: boolean };
+/** Something that just happened to a block, for the drawing to animate. `at` is the game time. */
+export type BlockEffect = Point & { kind: "smash" | "coin"; at: number };
+
+/** How long block effects stay in the state for drawing. */
+export const EFFECT_S = 0.8;
 
 export type JumpState = {
   level: Level;
@@ -57,6 +66,10 @@ export type JumpState = {
   invulnerable: number;
   checkpointReached: boolean;
   jumpHeld: boolean;
+  /** Question blocks already emptied, as "x,y". */
+  usedBlocks: string[];
+  effects: BlockEffect[];
+  bricksSmashed: number;
   status: "playing" | "won" | "lost";
   time: number;
 };
@@ -67,8 +80,9 @@ export function parseLevel(rows: string[]): Level {
   const level: Level = {
     width,
     height: rows.length,
-    solid: rows.map((r) => [...r].map((c) => c === "#" || c === "B")),
+    solid: rows.map((r) => [...r].map((c) => c === "#" || c === "B" || c === "Q")),
     bricks: [],
+    questions: [],
     start: { x: -1, y: -1 },
     flag: { x: -1, y: -1 },
     checkpoint: null,
@@ -83,6 +97,7 @@ export function parseLevel(rows: string[]): Level {
       else if (c === "o") level.coins.push({ x, y });
       else if (c === "e") level.enemies.push({ x, y });
       else if (c === "B") level.bricks.push({ x, y });
+      else if (c === "Q") level.questions.push({ x, y });
     }),
   );
   if (level.start.x < 0) throw new Error("Level needs a start (P)");
@@ -118,6 +133,9 @@ export function createGame(level: Level): JumpState {
     invulnerable: 0,
     checkpointReached: false,
     jumpHeld: false,
+    usedBlocks: [],
+    effects: [],
+    bricksSmashed: 0,
     status: "playing",
     time: 0,
   };
@@ -181,6 +199,47 @@ function approach(value: number, target: number, amount: number): number {
   return value < target ? Math.min(value + amount, target) : Math.max(value - amount, target);
 }
 
+/** The solid tile a rising body's head just hit: the one under its centre, else the other one it touches. */
+function ceilingTile(level: Level, b: Body): Point | null {
+  const ty = Math.floor((b.y - 1) / TILE);
+  const [x0, x1] = tileRange(b.x, b.w);
+  const centre = Math.floor((b.x + b.w / 2) / TILE);
+  const candidates = [centre, ...(x0 === x1 ? [] : [x0 === centre ? x1 : x0])];
+  const tx = candidates.find((x) => x >= 0 && x < level.width && ty >= 0 && ty < level.height && level.solid[ty][x]);
+  return tx === undefined ? null : { x: tx, y: ty };
+}
+
+/** A head bump from below: smash a brick, or empty a question block. */
+function bumpBlock(s: JumpState, tile: Point): JumpState {
+  const { level } = s;
+  const key = `${tile.x},${tile.y}`;
+  const isBrick = level.bricks.some((b) => b.x === tile.x && b.y === tile.y);
+  const isQuestion = level.questions.some((q) => q.x === tile.x && q.y === tile.y) && !s.usedBlocks.includes(key);
+  if (!isBrick && !isQuestion) return s;
+
+  // Slimes standing on the block get knocked out.
+  const top = { x: tile.x * TILE, y: tile.y * TILE - 4, w: TILE, h: 4 };
+  const enemies = s.enemies.map((e) => (e.alive && overlaps(e, top) ? { ...e, alive: false } : e));
+
+  if (isQuestion) {
+    return {
+      ...s,
+      enemies,
+      usedBlocks: [...s.usedBlocks, key],
+      coinsCollected: s.coinsCollected + 1,
+      effects: [...s.effects, { ...tile, kind: "coin", at: s.time }],
+    };
+  }
+  const solid = level.solid.map((row, y) => (y === tile.y ? row.map((v, x) => (x === tile.x ? false : v)) : row));
+  return {
+    ...s,
+    enemies,
+    level: { ...level, solid, bricks: level.bricks.filter((b) => b.x !== tile.x || b.y !== tile.y) },
+    bricksSmashed: s.bricksSmashed + 1,
+    effects: [...s.effects, { ...tile, kind: "smash", at: s.time }],
+  };
+}
+
 export function step(state: JumpState, input: Input, dt: number): JumpState {
   if (state.status !== "playing") return state;
   const { level } = state;
@@ -197,7 +256,9 @@ export function step(state: JumpState, input: Input, dt: number): JumpState {
 
   applyGravity(p, dt);
   const prevBottom = p.y + p.h;
+  const rising = p.vy < 0;
   moveBody(level, p, dt);
+  const bumped = rising && p.vy === 0 ? ceilingTile(level, p) : null;
 
   // Slimes patrol, turning at walls and ledges.
   const enemies = state.enemies.map((e) => {
@@ -219,7 +280,9 @@ export function step(state: JumpState, input: Input, dt: number): JumpState {
     jumpHeld: input.jump,
     time: state.time + dt,
     invulnerable: Math.max(0, state.invulnerable - dt),
+    effects: state.effects.filter((e) => state.time - e.at < EFFECT_S),
   };
+  if (bumped) s = bumpBlock(s, bumped);
 
   // Coins.
   let collected = 0;
@@ -287,6 +350,7 @@ function buildLevel1(): string[] {
   put(2, 9, "P");
   coins(6, 8, 9);
   bricks(10, 13, 7);
+  put(11, 7, "Q");
   coins(10, 13, 6);
   put(16, 9, "e");
   stairs(18, 2);
@@ -294,8 +358,10 @@ function buildLevel1(): string[] {
   put(23, 6, "o");
   put(24, 7, "o");
   bricks(28, 31, 7);
+  put(29, 7, "Q");
   put(30, 6, "e");
   bricks(33, 36, 4);
+  put(35, 4, "Q");
   coins(33, 36, 3);
   put(38, 9, "e");
   put(42, 9, "e");
@@ -306,7 +372,12 @@ function buildLevel1(): string[] {
   put(49, 7, "o");
   put(52, 9, "C");
   bricks(55, 58, 7);
+  put(56, 7, "Q");
+  put(57, 7, "Q");
   bricks(61, 64, 5);
+  put(62, 5, "Q");
+  bricks(78, 81, 6);
+  put(80, 6, "Q");
   coins(61, 64, 4);
   put(57, 9, "e");
   put(65, 9, "e");

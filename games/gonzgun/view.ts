@@ -38,6 +38,7 @@ import {
   glowTexture,
   splatTexture,
   tagTexture,
+  wordTexture,
 } from "./art";
 import { OBSTACLES, RULES, type GameEvent, type GonzState, type Obstacle, type Pickup } from "./logic";
 import { disposeTree, makeFighterModel, setFlash, type Character, type FighterModel } from "./models";
@@ -45,6 +46,9 @@ import { disposeTree, makeFighterModel, setFlash, type Character, type FighterMo
 const BULLET_Y = 0.95;
 const GRAVITY = 16;
 const BLOOD = 0x1d5cff;
+const WHITE = new Color(0xffffff);
+const GOLD = new Color(0xffd21f);
+const RED = new Color(0xff2d2d);
 export const PLAYER_COLORS = ["#facc15", "#38bdf8"] as const;
 
 /* ---------- Particles: blue blood droplets and sparks ---------- */
@@ -65,6 +69,7 @@ class Burst {
     material: MeshStandardMaterial | MeshBasicMaterial,
     private readonly maxLife: number,
     private readonly onLand?: (x: number, z: number) => void,
+    private readonly gravity = GRAVITY,
   ) {
     this.mesh = new InstancedMesh(geometry, material, count);
     this.mesh.frustumCulled = false;
@@ -78,8 +83,12 @@ class Burst {
     for (let i = 0; i < count; i++) this.mesh.setMatrixAt(i, this.dummy.matrix);
   }
 
-  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number) {
+  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number, color?: Color) {
     const i = this.next;
+    if (color) {
+      this.mesh.setColorAt(i, color);
+      this.mesh.instanceColor!.needsUpdate = true;
+    }
     this.next = (this.next + 1) % this.count;
     this.pos.set([x, y, z], i * 3);
     this.vel.set([vx, vy, vz], i * 3);
@@ -95,7 +104,7 @@ class Burst {
       this.life[i] -= dt;
       const p = i * 3;
       if (!this.stuck[i]) {
-        this.vel[p + 1] -= GRAVITY * dt;
+        this.vel[p + 1] -= this.gravity * dt;
         this.pos[p] += this.vel[p] * dt;
         this.pos[p + 1] += this.vel[p + 1] * dt;
         this.pos[p + 2] += this.vel[p + 2] * dt;
@@ -168,6 +177,71 @@ class Splats {
     }
   }
 }
+
+/** Comic-book words ("POW!") that pop up where hits land and float away. */
+class Words {
+  readonly group = new Group();
+  private readonly items: { sprite: Sprite; age: number; size: number }[] = [];
+  private readonly textures = new Map<string, Texture>();
+  private next = 0;
+
+  constructor(private readonly reducedMotion: boolean) {
+    for (let i = 0; i < 8; i++) {
+      const sprite = new Sprite(new SpriteMaterial({ transparent: true, depthTest: false }));
+      sprite.visible = false;
+      sprite.renderOrder = 20;
+      this.group.add(sprite);
+      this.items.push({ sprite, age: 0, size: 1 });
+    }
+  }
+
+  private texture(word: string): Texture {
+    let t = this.textures.get(word);
+    if (!t) {
+      t = wordTexture(word);
+      this.textures.set(word, t);
+    }
+    return t;
+  }
+
+  show(word: string, x: number, y: number, z: number, size = 1) {
+    const it = this.items[this.next];
+    this.next = (this.next + 1) % this.items.length;
+    it.sprite.material.map = this.texture(word);
+    it.sprite.material.rotation = (Math.random() - 0.5) * 0.5;
+    it.sprite.material.needsUpdate = true;
+    it.sprite.position.set(x + (Math.random() - 0.5) * 0.6, y, z);
+    it.sprite.visible = true;
+    it.age = 0;
+    it.size = size;
+  }
+
+  update(dt: number) {
+    for (const it of this.items) {
+      if (!it.sprite.visible) continue;
+      it.age += dt;
+      const life = 0.9;
+      if (it.age >= life) {
+        it.sprite.visible = false;
+        continue;
+      }
+      const pop = this.reducedMotion ? 1 : it.age < 0.1 ? 0.5 + (it.age / 0.1) * 0.8 : Math.max(1, 1.3 - (it.age - 0.1) * 3);
+      const scale = 1.6 * it.size * pop;
+      it.sprite.scale.set(scale, scale * 0.5, 1);
+      if (!this.reducedMotion) it.sprite.position.y += dt * 1.4;
+      it.sprite.material.opacity = Math.min(1, (life - it.age) / 0.3);
+    }
+  }
+
+  dispose() {
+    for (const t of this.textures.values()) t.dispose();
+  }
+}
+
+const HIT_WORDS = ["POW!", "BAM!", "ZAP!", "WHAM!", "BOP!"];
+const CONFETTI = [0xfacc15, 0x38bdf8, 0xf43f5e, 0x34d399, 0xa78bfa, 0xffffff].map((c) => new Color(c));
+const DUST = [0x9ca3af, 0x78716c, 0xd6d3d1].map((c) => new Color(c));
+const ELECTRIC = [0xffe14d, 0xfff7c2, 0x7dd3fc].map((c) => new Color(c));
 
 /* ---------- The basement ---------- */
 
@@ -377,6 +451,11 @@ export class View {
   private readonly fighters: FighterView[];
   private readonly blood: Burst;
   private readonly sparks: Burst;
+  private readonly confetti: Burst;
+  private readonly words: Words;
+  private readonly kinds: [Character, Character];
+  private winner: 0 | 1 | null = null;
+  private partyTime = 0;
   private readonly splats: Splats;
   private readonly bulbs: PointLight[];
   private readonly pillarMats: { obstacle: Obstacle; mat: MeshStandardMaterial }[];
@@ -428,7 +507,10 @@ export class View {
       (x, z) => Math.random() < 0.08 && this.splats.add(x, z, 0.25 + Math.random() * 0.3),
     );
     this.sparks = new Burst(160, new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: 0xffc14d }), 0.45);
-    s.add(this.blood.mesh, this.sparks.mesh);
+    this.confetti = new Burst(300, new BoxGeometry(1, 0.15, 0.6), new MeshBasicMaterial({ color: 0xffffff }), 2.4, undefined, 4);
+    this.words = new Words(reducedMotion);
+    s.add(this.blood.mesh, this.sparks.mesh, this.confetti.mesh, this.words.group);
+    this.kinds = characters;
 
     this.bulletMats = PLAYER_COLORS.map((c) => new MeshBasicMaterial({ color: new Color(c).lerp(new Color(0xffffff), 0.45) }));
 
@@ -454,7 +536,7 @@ export class View {
       this.textures.push(tagTex);
       const tag = new Sprite(new SpriteMaterial({ map: tagTex, depthTest: false, transparent: true }));
       tag.scale.set(0.9, 0.45, 1);
-      tag.position.y = kind === "blocky" ? 2.05 : 1.95;
+      tag.position.y = kind === "sparky" ? 1.95 : 2.1;
       tag.renderOrder = 10;
       holder.add(tag);
       const flash = new Sprite(
@@ -494,6 +576,7 @@ export class View {
         }
         case "hit":
           this.bleed(e.x, e.z, e.angle, 16, 1);
+          this.words.show(HIT_WORDS[Math.floor(Math.random() * HIT_WORDS.length)], e.x, 2.1, e.z, 0.8);
           this.fighters[e.target].hitTime = 0.12;
           this.addShake(0.12);
           break;
@@ -503,6 +586,7 @@ export class View {
             const d = 0.4 + i * 0.45;
             this.splats.add(e.x + Math.cos(e.angle) * d + (Math.random() - 0.5) * 0.5, e.z + Math.sin(e.angle) * d + (Math.random() - 0.5) * 0.5, 0.7 + Math.random() * 0.6);
           }
+          this.words.show(e.streak >= 3 ? "WOW!" : e.streak === 2 ? "COMBO!" : "BOOM!", e.x, 2.3, e.z, 1.3);
           this.fighters[e.target].koTime = 0;
           this.fighters[e.target].hitTime = 0.2;
           this.addShake(0.45);
@@ -516,12 +600,26 @@ export class View {
         case "spawn":
           this.fighters[e.fighter].koTime = -1;
           break;
-        case "pickup":
-          for (let i = 0; i < 18; i++) {
-            const a = (i / 18) * Math.PI * 2;
-            const f = state.fighters[e.fighter];
-            this.sparks.emit(f.x, 0.6, f.z, Math.cos(a) * 3, 3, Math.sin(a) * 3, 0.07);
+        case "dash": {
+          const f = state.fighters[e.fighter];
+          const colors = this.kinds[e.fighter] === "sparky" || this.kinds[e.fighter] === "turbo" ? ELECTRIC : DUST;
+          for (let i = 0; i < 16; i++) {
+            const a = Math.random() * Math.PI * 2;
+            this.confetti.emit(f.x, 0.15 + Math.random() * 0.8, f.z, Math.cos(a) * 1.5, 1 + Math.random() * 2, Math.sin(a) * 1.5, 0.08 + Math.random() * 0.06, colors[i % colors.length]);
           }
+          break;
+        }
+        case "win":
+          this.winner = e.winner;
+          this.partyTime = 0;
+          break;
+        case "pickup":
+          for (let i = 0; i < 24; i++) {
+            const a = (i / 24) * Math.PI * 2;
+            const f = state.fighters[e.fighter];
+            this.confetti.emit(f.x, 0.6, f.z, Math.cos(a) * 3, 3, Math.sin(a) * 3, 0.1, CONFETTI[i % CONFETTI.length]);
+          }
+          this.words.show(e.kind === "health" ? "+40" : "x3!", state.fighters[e.fighter].x, 2.2, state.fighters[e.fighter].z, 0.8);
           break;
         default:
           break;
@@ -560,8 +658,13 @@ export class View {
       v.holder.rotation.y = Math.PI / 2 - f.aim;
       v.walk += ((f.walking ? 1 : 0) - v.walk) * Math.min(1, dt * 10);
       v.model.animate(t, v.walk);
+      v.model.power?.(f.triple > 0, t);
       v.hitTime = Math.max(0, v.hitTime - dt);
-      setFlash(v.model, v.hitTime > 0 ? 0.9 : f.triple > 0 ? 0.12 + Math.sin(t * 10) * 0.08 : 0, f.triple > 0 && v.hitTime === 0 ? new Color(0xffd21f) : new Color(0xffffff));
+      // White when hit, gold with triple shot, a red pulse when nearly knocked out.
+      if (v.hitTime > 0) setFlash(v.model, 0.9, WHITE);
+      else if (f.triple > 0) setFlash(v.model, 0.12 + Math.sin(t * 10) * 0.08, GOLD);
+      else if (f.alive && f.hp <= 40) setFlash(v.model, 0.25 + Math.sin(t * 8) * 0.15, RED);
+      else setFlash(v.model, 0, WHITE);
 
       if (!f.alive) {
         if (v.koTime >= 0) v.koTime += dt;
@@ -598,6 +701,8 @@ export class View {
     this.syncPickups(state.pickups, t);
     this.blood.update(dt);
     this.sparks.update(dt);
+    this.confetti.update(dt);
+    this.words.update(dt);
     this.splats.update(dt);
 
     this.shotLight.intensity = Math.max(0, this.shotLight.intensity - dt * 160);
@@ -607,6 +712,8 @@ export class View {
       b.intensity = 22 * flicker * (0.96 + Math.sin(t * 5 + i) * 0.04);
     });
 
+    if (this.winner !== null) this.celebrate(state, dt);
+
     this.shake = Math.max(0, this.shake - dt * 1.6);
     const k = this.shake * this.shake;
     this.camera.position.set(
@@ -615,6 +722,35 @@ export class View {
       this.camBase.z + (Math.random() - 0.5) * k,
     );
     this.camera.lookAt(this.camTarget);
+  }
+
+  /** The winner turns to the camera and hops while confetti rains; the camera swoops in. */
+  private celebrate(state: GonzState, dt: number) {
+    const i = this.winner!;
+    const f = state.fighters[i];
+    const v = this.fighters[i];
+    this.partyTime += dt;
+    const ease = Math.min(1, dt * 2.5);
+    this.camTarget.lerp(new Vector3(f.x, 0.9, f.z), ease);
+    this.camBase.lerp(new Vector3(f.x * 0.8, 6.5, f.z + 7.5), ease);
+    v.holder.rotation.y = 0;
+    v.model.animate(this.time, 1);
+    v.model.root.position.y = this.reducedMotion ? 0 : Math.abs(Math.sin(this.partyTime * 6)) * 0.5;
+    v.shield.visible = false;
+    if (this.partyTime < 2.5 && Math.random() < 0.8) {
+      for (let n = 0; n < 3; n++) {
+        this.confetti.emit(
+          f.x + (Math.random() - 0.5) * 5,
+          4 + Math.random(),
+          f.z + (Math.random() - 0.5) * 3,
+          (Math.random() - 0.5) * 1.5,
+          0,
+          (Math.random() - 0.5) * 1.5,
+          0.1 + Math.random() * 0.05,
+          CONFETTI[Math.floor(Math.random() * CONFETTI.length)],
+        );
+      }
+    }
   }
 
   private syncBullets(state: GonzState) {
@@ -709,6 +845,7 @@ export class View {
 
   dispose() {
     for (const f of this.fighters) f.model.dispose();
+    this.words.dispose();
     disposeTree(this.scene);
     for (const t of this.textures) t.dispose();
   }

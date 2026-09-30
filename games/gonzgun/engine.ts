@@ -1,7 +1,7 @@
 import { PCFShadowMap, SRGBColorSpace, WebGLRenderer } from "three";
 import { CpuBrain } from "./ai";
 import { GonzAudio } from "./audio";
-import { createGame, step, type GameEvent, type GonzState, type Input } from "./logic";
+import { createGame, step, type Difficulty, type GameEvent, type GonzState, type Input } from "./logic";
 import type { Character } from "./models";
 import { View } from "./view";
 
@@ -12,10 +12,13 @@ export type Hud = {
   kos: [number, number];
   triple: [boolean, boolean];
   alive: [boolean, boolean];
+  /** 3, 2, 1 before the fight; 0 once it's on. */
+  countdown: number;
 };
 
 export type EngineOptions = {
   mode: Mode;
+  difficulty: Difficulty;
   characters: [Character, Character];
   tags: [string, string];
   reducedMotion: boolean;
@@ -30,7 +33,11 @@ export type EngineEvents = {
 const STEP = 1 / 60;
 const MAX_FRAME = 0.1;
 /** Let the final knockout play out before reporting the result. */
-const OVER_DELAY = 1.8;
+const OVER_DELAY = 3.2;
+/** A tiny freeze on each knockout makes it land harder. */
+const HIT_STOP = 0.09;
+/** The winning blow plays in slow motion. */
+const SLOW_MO = { time: 1.2, scale: 0.3 };
 
 /**
  * Owns the renderer and the loop: a fixed 60 Hz simulation, drawn every
@@ -48,6 +55,9 @@ export class Engine {
   private last = performance.now();
   private acc = 0;
   private overFor = 0;
+  private freeze = 0;
+  private countedIn = false;
+  private slowMo = 0;
   private reported = false;
   private lastHud = "";
 
@@ -70,7 +80,7 @@ export class Engine {
     container.appendChild(canvas);
 
     this.view = new View(options.characters, options.tags, options.reducedMotion);
-    this.brain = options.mode === "cpu" ? new CpuBrain(1, Math.random) : null;
+    this.brain = options.mode === "cpu" ? new CpuBrain(1, Math.random, options.difficulty) : null;
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.resize();
@@ -81,6 +91,11 @@ export class Engine {
   /** Call from a click or key handler so the browser allows sound. */
   unlockAudio() {
     this.audio.unlock();
+    // The first "3" of the countdown has no step event; beep it once sound is allowed.
+    if (!this.countedIn && this.state.countdown > 2) {
+      this.countedIn = true;
+      this.audio.play("count");
+    }
   }
 
   setMuted(muted: boolean) {
@@ -99,12 +114,27 @@ export class Engine {
     const now = performance.now();
     const elapsed = Math.min(Math.max((now - this.last) / 1000, 0), MAX_FRAME);
     this.last = now;
-    this.acc += elapsed;
+    let simTime = elapsed;
+    if (this.freeze > 0) {
+      simTime = 0;
+      this.freeze -= elapsed;
+    } else if (this.slowMo > 0) {
+      simTime = elapsed * SLOW_MO.scale;
+      this.slowMo -= elapsed;
+    }
+    this.acc += simTime;
     while (this.acc >= STEP) {
       this.tick();
       this.acc -= STEP;
     }
-    this.view.draw(this.state, elapsed);
+    if (this.state.status === "over" && !this.reported) {
+      this.overFor += elapsed;
+      if (this.overFor >= OVER_DELAY) {
+        this.reported = true;
+        this.events.onOver(this.state);
+      }
+    }
+    this.view.draw(this.state, simTime > 0 ? simTime : elapsed * 0.05);
     this.renderer.render(this.view.scene, this.view.camera);
   };
 
@@ -118,16 +148,11 @@ export class Engine {
       for (const e of s.events) {
         this.audio.play(e.type);
         this.events.onEvent(e);
+        if (e.type === "ko") this.freeze = HIT_STOP;
+        if (e.type === "win" && !this.options.reducedMotion) this.slowMo = SLOW_MO.time;
       }
     }
     this.emitHud();
-    if (s.status === "over" && !this.reported) {
-      this.overFor += STEP;
-      if (this.overFor >= OVER_DELAY) {
-        this.reported = true;
-        this.events.onOver(s);
-      }
-    }
   }
 
   private emitHud() {
@@ -137,6 +162,7 @@ export class Engine {
       kos: [a.kos, b.kos],
       triple: [a.triple > 0, b.triple > 0],
       alive: [a.alive, b.alive],
+      countdown: Math.ceil(this.state.countdown),
     };
     const key = JSON.stringify(hud);
     if (key === this.lastHud) return;

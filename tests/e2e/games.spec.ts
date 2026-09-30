@@ -31,7 +31,7 @@ async function expectResultThenReplayAndLeave(page: Page, headline: RegExp) {
 test.describe("Memory Match", () => {
   async function solve(page: Page, touch: boolean) {
     const cards = page.getByRole("button", { name: /^Card \d+/ });
-    await expect(cards).toHaveCount(12);
+    await expect(cards).toHaveCount(20);
     const count = await cards.count();
     const seen = new Map<string, number>();
     const symbolOf = async (i: number) =>
@@ -232,10 +232,16 @@ test.describe("Gonzgun", () => {
     await press(duo, touch);
     await expect(duo).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText(/P2: arrows move and aim/)).toBeVisible();
-    const sparky = page.getByRole("button", { name: /Sparky/ });
-    await press(sparky, touch);
-    await expect(sparky).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /Blocky/ })).toHaveAttribute("aria-pressed", "false");
+    const p1 = page.getByRole("group", { name: "Player 1 picks a fighter" });
+    const p2 = page.getByRole("group", { name: "Player 2 picks a fighter" });
+    await expect(p1.getByRole("button")).toHaveCount(4);
+    const turbo = p1.getByRole("button", { name: /Turbo/ });
+    await press(turbo, touch);
+    await expect(turbo).toHaveAttribute("aria-pressed", "true");
+    await expect(p1.getByRole("button", { name: /Blocky/ })).toHaveAttribute("aria-pressed", "false");
+    const pixel = p2.getByRole("button", { name: /Pixel/ });
+    await press(pixel, touch);
+    await expect(pixel).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Fight!" })).toBeVisible();
   });
 });

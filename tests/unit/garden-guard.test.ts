@@ -6,7 +6,10 @@ import {
   ROWS,
   START_HEARTS,
   START_SUN,
+  SUN_LIFETIME,
   canPlace,
+  collect,
+  collectAll,
   createGame,
   makeSchedule,
   place,
@@ -23,8 +26,13 @@ function run(state: GardenState, seconds: number): GardenState {
 }
 
 /** A game whose snails all come down one row at the given times. */
-function withSchedule(times: number[], row = 2, big = false): GardenState {
-  return { ...createGame(rng), schedule: times.map((at) => ({ at, row, big })) };
+function withSchedule(times: number[], row = 2, big = false, fast = false): GardenState {
+  return { ...createGame(rng), schedule: times.map((at) => ({ at, row, big, fast })) };
+}
+
+/** The same, with every lawn mower already used up. */
+function noMowers(state: GardenState): GardenState {
+  return { ...state, mowers: state.mowers.map((m) => ({ ...m, state: "used" as const })) };
 }
 
 describe("setup", () => {
@@ -45,6 +53,8 @@ describe("setup", () => {
     expect(gaps[0]).toBeGreaterThan(gaps[gaps.length - 1]);
     expect(schedule.slice(0, 11).some((s) => s.big)).toBe(false);
     expect(schedule.slice(11).some((s) => s.big)).toBe(true);
+    expect(schedule.slice(0, 5).some((s) => s.fast)).toBe(false);
+    expect(schedule.slice(5).some((s) => s.fast)).toBe(true);
   });
 });
 
@@ -67,22 +77,61 @@ describe("planting", () => {
 });
 
 describe("sunshine", () => {
-  it("falls from the sky over time", () => {
+  it("falls from the sky, and tapping picks it up", () => {
     const s = run(withSchedule([999]), 10);
-    expect(s.sun).toBeGreaterThan(START_SUN);
+    expect(s.suns).toHaveLength(1);
+    expect(s.suns[0].fromSky).toBe(true);
+    const picked = collect(s, s.suns[0].id);
+    expect(picked.sun).toBe(s.sun + 25);
+    expect(picked.suns).toHaveLength(0);
+    expect(collect(picked, s.suns[0].id)).toBe(picked);
+  });
+
+  it("collects itself if nobody taps it", () => {
+    const s = run(withSchedule([999]), 10 + SUN_LIFETIME);
+    expect(s.sun).toBe(START_SUN + 25);
   });
 
   it("sunflowers make extra", () => {
-    const plain = run(withSchedule([999]), 12);
-    const flowered = run(place(withSchedule([999]), 0, 0, "sunflower"), 12);
+    const plain = collectAll(run(withSchedule([999]), 12));
+    const flowered = collectAll(run(place(withSchedule([999]), 0, 0, "sunflower"), 12));
     expect(flowered.sun - (plain.sun - PLANTS.sunflower.cost)).toBeGreaterThanOrEqual(50);
   });
 });
 
 describe("snails", () => {
   it("crawl toward the house and cost a heart when they get there", () => {
-    const s = run(withSchedule([0]), 45);
+    const s = run(noMowers(withSchedule([0])), 45);
     expect(s.hearts).toBe(START_HEARTS - 1);
+  });
+
+  it("the first snail at the house sets off that row's mower, which clears the row", () => {
+    let s = run(withSchedule([0, 3, 90]), 42);
+    expect(s.hearts).toBe(START_HEARTS);
+    expect(s.mowers[2].state).not.toBe("ready");
+    expect(s.mowers[0].state).toBe("ready");
+    s = run(s, 5);
+    expect(s.shooed).toBe(2);
+    expect(s.mowers[2].state).toBe("used");
+  });
+
+  it("fast snails zoom in and need fewer peas", () => {
+    const slow = run(withSchedule([0]), 10);
+    const fast = run(withSchedule([0], 2, false, true), 10);
+    expect(fast.snails[0].x).toBeLessThan(slow.snails[0].x - 1);
+    expect(fast.snails[0].maxHp).toBeLessThan(slow.snails[0].maxHp);
+  });
+
+  it("a chili blows up every snail around it", () => {
+    let s = { ...withSchedule([0, 0]), sun: 500 };
+    s.schedule[1] = { at: 0, row: 3, big: true };
+    s = run(s, 10);
+    const x = Math.floor(s.snails[0].x);
+    s = place(s, 2, x, "chili");
+    s = run(s, 1);
+    expect(s.snails).toHaveLength(0);
+    expect(s.shooed).toBe(2);
+    expect(s.plants[2][x]).toBeNull();
   });
 
   it("pea shooters shoo snails in their row", () => {
@@ -128,7 +177,7 @@ describe("winning and losing", () => {
   });
 
   it("loses when snails reach the house three times", () => {
-    const s = run(withSchedule([0, 1, 2]), 60);
+    const s = run(noMowers(withSchedule([0, 1, 2])), 60);
     expect(s.hearts).toBe(0);
     expect(s.status).toBe("lost");
     expect(step(s, DT)).toBe(s);

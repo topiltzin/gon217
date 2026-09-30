@@ -189,3 +189,41 @@ describe("level 1", () => {
     }
   });
 });
+
+describe("bricks and question blocks", () => {
+  const jump: Input = { left: false, right: false, jump: true };
+  // The player starts right under a brick (x=1) next to a question block (x=3).
+  const ROOM = ["......F", ".B.Q...", ".......", ".P.....", "#######"];
+
+  it("smashes a brick with a head bump", () => {
+    const s = runUntil(run(createGame(parseLevel(ROOM)), idle, 0.3), jump, (st) => st.bricksSmashed > 0, 2);
+    expect(s.bricksSmashed).toBe(1);
+    expect(s.level.solid[1][1]).toBe(false);
+    expect(s.level.bricks).toHaveLength(0);
+    expect(s.effects).toContainEqual(expect.objectContaining({ kind: "smash", x: 1, y: 1 }));
+  });
+
+  it("a question block gives one coin, then is used up", () => {
+    let s = run(createGame(parseLevel(ROOM.map((r, y) => (y === 3 ? "...P..." : r)))), idle, 0.3);
+    s = runUntil(s, jump, (st) => st.coinsCollected > 0, 2);
+    expect(s.coinsCollected).toBe(1);
+    expect(s.usedBlocks).toEqual(["3,1"]);
+    expect(s.level.solid[1][3]).toBe(true);
+    s = run(s, idle, 1);
+    s = run(s, jump, 1);
+    expect(s.coinsCollected).toBe(1);
+  });
+
+  it("knocks out a slime standing on the bumped brick", () => {
+    const level = parseLevel(["......F", ".e.....", ".B.....", ".......", ".P.....", "#######"]);
+    let s = run(createGame(level), idle, 0.3);
+    expect(s.enemies[0].alive).toBe(true);
+    s = runUntil(s, jump, (st) => st.bricksSmashed > 0, 2);
+    expect(s.enemies[0].alive).toBe(false);
+  });
+
+  it("level 1 has question blocks", () => {
+    expect(parseLevel(LEVEL_1).questions.length).toBeGreaterThan(3);
+  });
+});
+

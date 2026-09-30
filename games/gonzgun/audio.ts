@@ -3,7 +3,7 @@
  * on the first click (browsers block audio before that).
  */
 
-export type Sound = "shot" | "hit" | "ko" | "wall" | "pickup" | "dash" | "spawn" | "win";
+export type Sound = "shot" | "hit" | "ko" | "wall" | "pickup" | "dash" | "spawn" | "win" | "count" | "go";
 
 export class GonzAudio {
   private ctx: AudioContext | null = null;
@@ -90,6 +90,13 @@ export class GonzAudio {
         break;
       case "spawn":
         this.tone("triangle", 200, 800, 0.25, 0.15);
+        break;
+      case "count":
+        this.tone("square", 440, 440, 0.15, 0.12);
+        break;
+      case "go":
+        this.tone("square", 880, 880, 0.35, 0.14);
+        this.tone("square", 1320, 1320, 0.35, 0.06);
         break;
       case "win":
         [523, 659, 784, 1047].forEach((f, i) => this.tone("square", f, f, 0.18, 0.1, i * 0.12));

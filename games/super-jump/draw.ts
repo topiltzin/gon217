@@ -1,4 +1,4 @@
-import { type JumpState, TILE } from "./logic";
+import { EFFECT_S, type JumpState, TILE } from "./logic";
 
 export const VIEW_W = 20 * TILE; // 320 logical pixels
 export const VIEW_H = 12 * TILE; // 192 logical pixels
@@ -55,6 +55,15 @@ export function drawFrame(
   const x0 = Math.max(0, Math.floor(camX / TILE));
   const x1 = Math.min(level.width - 1, Math.ceil((camX + VIEW_W) / TILE));
   const brickSet = new Set(level.bricks.map((b) => `${b.x},${b.y}`));
+  const questionSet = new Set(level.questions.map((q) => `${q.x},${q.y}`));
+  const usedSet = new Set(s.usedBlocks);
+  // A question block jumps up a little when bumped.
+  const bumpOf = (tx: number, ty: number) => {
+    if (reducedMotion) return 0;
+    const e = s.effects.find((f) => f.kind === "coin" && f.x === tx && f.y === ty);
+    const age = e ? s.time - e.at : 1;
+    return age < 0.16 ? -Math.round(Math.sin((age / 0.16) * Math.PI) * 4) : 0;
+  };
 
   // Tiles.
   for (let ty = 0; ty < level.height; ty++) {
@@ -62,7 +71,10 @@ export function drawFrame(
       if (!level.solid[ty][tx]) continue;
       const px = tx * TILE;
       const py = ty * TILE;
-      if (brickSet.has(`${tx},${ty}`)) {
+      const key = `${tx},${ty}`;
+      if (questionSet.has(key)) {
+        drawQuestion(ctx, px, py + bumpOf(tx, ty), usedSet.has(key), reducedMotion ? 0 : s.time);
+      } else if (brickSet.has(key)) {
         drawBrick(ctx, px, py);
       } else {
         drawGround(ctx, px, py, ty === 0 || !level.solid[ty - 1][tx]);
@@ -84,6 +96,36 @@ export function drawFrame(
     ctx.fillRect(cx - half, cy - 6, half * 2, 12);
     ctx.fillStyle = C.coinShine;
     ctx.fillRect(cx - half, cy - 5, 1, 8);
+  }
+
+  // Smashed bricks fly apart in four pieces; bumped question blocks pop a coin.
+  for (const e of s.effects) {
+    const age = s.time - e.at;
+    const bx = e.x * TILE;
+    const by = e.y * TILE;
+    if (e.kind === "smash") {
+      for (const [dx, dy, vx, vy] of [[0, 0, -40, -170], [8, 0, 40, -170], [0, 8, -30, -110], [8, 8, 30, -110]]) {
+        const x = Math.round(bx + dx + vx * age);
+        const y = Math.round(by + dy + vy * age + 500 * age * age);
+        ctx.fillStyle = C.ground;
+        ctx.fillRect(x, y, 7, 7);
+        ctx.fillStyle = C.groundInk;
+        ctx.fillRect(x, y + 3, 7, 1);
+        ctx.fillRect(x + 3, y, 1, 3);
+        ctx.fillStyle = C.groundLight;
+        ctx.fillRect(x, y, 3, 1);
+      }
+    } else if (age < EFFECT_S * 0.6) {
+      const rise = reducedMotion ? 10 : Math.round(age * 90 - age * age * 120);
+      const cx = bx + TILE / 2;
+      const cy = by - 6 - rise;
+      ctx.fillStyle = C.coinInk;
+      ctx.fillRect(cx - 4, cy - 7, 8, 14);
+      ctx.fillStyle = C.coin;
+      ctx.fillRect(cx - 3, cy - 6, 6, 12);
+      ctx.fillStyle = C.coinShine;
+      ctx.fillRect(cx - 3, cy - 5, 1, 8);
+    }
   }
 
   // Checkpoint and flag.
@@ -180,6 +222,26 @@ function drawBrick(ctx: CanvasRenderingContext2D, px: number, py: number) {
   ctx.fillStyle = C.groundLight;
   ctx.fillRect(px, py, 7, 1);
   ctx.fillRect(px + 8, py, 8, 1);
+}
+
+/** A golden "?" block; once emptied it turns into a plain dark block. `time` makes the "?" shimmer. */
+function drawQuestion(ctx: CanvasRenderingContext2D, px: number, py: number, used: boolean, time: number) {
+  ctx.fillStyle = C.groundInk;
+  ctx.fillRect(px, py, TILE, TILE);
+  ctx.fillStyle = used ? "#8c5a2c" : Math.floor(time * 3) % 3 === 2 ? C.coinShine : C.coin;
+  ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+  ctx.fillStyle = used ? "#6b4020" : C.coinInk;
+  // Rivets
+  for (const [x, y] of [[2, 2], [13, 2], [2, 13], [13, 13]]) ctx.fillRect(px + x, py + y, 1, 1);
+  if (used) return;
+  // A chunky pixel "?"
+  ctx.fillRect(px + 5, py + 3, 6, 2);
+  ctx.fillRect(px + 10, py + 4, 2, 4);
+  ctx.fillRect(px + 7, py + 7, 4, 2);
+  ctx.fillRect(px + 7, py + 8, 2, 2);
+  ctx.fillRect(px + 7, py + 11, 2, 2);
+  ctx.fillStyle = C.white;
+  ctx.fillRect(px + 5, py + 3, 1, 1);
 }
 
 function drawGround(ctx: CanvasRenderingContext2D, px: number, py: number, topEdge: boolean) {

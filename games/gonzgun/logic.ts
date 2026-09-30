@@ -42,6 +42,8 @@ export type Fighter = {
   /** Seconds of triple shot left. */
   triple: number;
   kos: number;
+  /** Knockouts in a row without being knocked out. */
+  streak: number;
   walking: boolean;
 };
 
@@ -51,18 +53,22 @@ export type Pickup = { id: number; kind: PickupKind; x: number; z: number };
 export type GameEvent =
   | { type: "shot"; owner: FighterId; x: number; z: number; angle: number }
   | { type: "hit"; target: FighterId; x: number; z: number; angle: number }
-  | { type: "ko"; target: FighterId; x: number; z: number; angle: number }
+  | { type: "ko"; target: FighterId; x: number; z: number; angle: number; streak: number }
   | { type: "wall"; x: number; z: number }
   | { type: "spawn"; fighter: FighterId }
   | { type: "dash"; fighter: FighterId }
   | { type: "pickup"; fighter: FighterId; kind: PickupKind }
-  | { type: "win"; winner: FighterId };
+  | { type: "win"; winner: FighterId }
+  | { type: "count"; n: number }
+  | { type: "go" };
 
 export type GonzState = {
   fighters: [Fighter, Fighter];
   bullets: Bullet[];
   pickups: Pickup[];
   pickupTimer: number;
+  /** Seconds of "3, 2, 1" left before anyone can move. */
+  countdown: number;
   nextId: number;
   time: number;
   status: "playing" | "over";
@@ -132,6 +138,7 @@ export const RULES = {
   pickupEvery: 7,
   maxPickups: 2,
   kosToWin: 5,
+  countdown: 3,
 } as const;
 
 function makeFighter(id: FighterId, spawn: { x: number; z: number }): Fighter {
@@ -151,16 +158,19 @@ function makeFighter(id: FighterId, spawn: { x: number; z: number }): Fighter {
     dashZ: 0,
     triple: 0,
     kos: 0,
+    streak: 0,
     walking: false,
   };
 }
 
 export function createGame(): GonzState {
   return {
-    fighters: [makeFighter(0, SPAWNS[0]), makeFighter(1, SPAWNS[1])],
+    // The countdown already keeps everyone safe, so no spawn shield at the start.
+    fighters: [makeFighter(0, SPAWNS[0]), makeFighter(1, SPAWNS[1])].map((f) => ({ ...f, invulnerable: 0 })) as [Fighter, Fighter],
     bullets: [],
     pickups: [],
     pickupTimer: RULES.pickupEvery / 2,
+    countdown: RULES.countdown,
     nextId: 1,
     time: 0,
     status: "playing",
@@ -349,7 +359,9 @@ function damage(s: GonzState, target: Fighter, b: Bullet) {
   target.dashTime = 0;
   target.walking = false;
   shooter.kos++;
-  s.events.push({ type: "ko", target: target.id, x: target.x, z: target.z, angle });
+  shooter.streak++;
+  target.streak = 0;
+  s.events.push({ type: "ko", target: target.id, x: target.x, z: target.z, angle, streak: shooter.streak });
   if (shooter.kos >= RULES.kosToWin) {
     s.status = "over";
     s.winner = shooter.id;
@@ -389,13 +401,21 @@ export function step(s: GonzState, inputs: [Input, Input], dt: number, rng: Rng)
     stepBullets(s, dt);
     return s;
   }
+  if (s.countdown > 0) {
+    const before = Math.ceil(s.countdown);
+    s.countdown = Math.max(0, s.countdown - dt);
+    const after = Math.ceil(s.countdown);
+    if (after === 0) s.events.push({ type: "go" });
+    else if (after !== before) s.events.push({ type: "count", n: after });
+    return s;
+  }
   for (const f of s.fighters) {
     const other = s.fighters[f.id === 0 ? 1 : 0];
     if (!f.alive) {
       f.respawnIn -= dt;
       if (f.respawnIn <= 0) {
         const spawn = pickSpawn(other);
-        Object.assign(f, makeFighter(f.id, spawn), { kos: f.kos });
+        Object.assign(f, makeFighter(f.id, spawn), { kos: f.kos, streak: f.streak });
         f.aim = Math.atan2(other.z - f.z, other.x - f.x);
         s.events.push({ type: "spawn", fighter: f.id });
       }
@@ -410,9 +430,13 @@ export function step(s: GonzState, inputs: [Input, Input], dt: number, rng: Rng)
   return s;
 }
 
-/** Points for a solo match against the CPU: 100 per KO, 300 for winning, plus up to 200 for accuracy. */
-export function soloScore(s: GonzState): number {
+export type Difficulty = "easy" | "normal" | "hard";
+
+const WIN_BONUS: Record<Difficulty, number> = { easy: 150, normal: 300, hard: 600 };
+
+/** Points for a solo match against the CPU: 100 per KO, a win bonus that grows with difficulty, plus up to 200 for accuracy. */
+export function soloScore(s: GonzState, difficulty: Difficulty = "normal"): number {
   const me = s.fighters[0];
   const accuracy = s.shots[0] ? Math.min(1, s.hits[0] / s.shots[0]) : 0;
-  return me.kos * 100 + (s.winner === 0 ? 300 : 0) + Math.round(accuracy * 200);
+  return me.kos * 100 + (s.winner === 0 ? WIN_BONUS[difficulty] : 0) + Math.round(accuracy * 200);
 }

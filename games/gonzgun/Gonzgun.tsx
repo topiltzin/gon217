@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
 import type { Engine, Hud, Mode } from "./engine";
-import { RULES, soloScore, type GameEvent, type GonzState, type Input } from "./logic";
-import type { Character } from "./models";
+import { RULES, soloScore, type Difficulty, type GameEvent, type GonzState, type Input } from "./logic";
+import { CHARACTERS, type Character } from "./characters";
 import { Portrait } from "./Portraits";
 
 type Phase = "setup" | "loading" | "playing" | "nowebgl";
@@ -39,8 +39,14 @@ const DUO_KEYS: KeyMap = { ...P1_KEYS, ...P2_KEYS };
 // Alone against the CPU, every key drives player 1.
 const SOLO_KEYS: KeyMap = Object.fromEntries(Object.entries(DUO_KEYS).map(([code, [, action]]) => [code, [0, action]]));
 
-const INITIAL_HUD: Hud = { hp: [RULES.maxHp, RULES.maxHp], kos: [0, 0], triple: [false, false], alive: [true, true] };
-const other = (c: Character): Character => (c === "blocky" ? "sparky" : "blocky");
+const INITIAL_HUD: Hud = {
+  hp: [RULES.maxHp, RULES.maxHp],
+  kos: [0, 0],
+  triple: [false, false],
+  alive: [true, true],
+  countdown: RULES.countdown,
+};
+const LOW_HP = 40;
 
 function hasWebgl() {
   try {
@@ -57,6 +63,8 @@ export default function Gonzgun({ onFinish }: GameProps) {
   const [phase, setPhase] = useState<Phase>("setup");
   const [mode, setMode] = useState<Mode>("cpu");
   const [pick, setPick] = useState<Character>("blocky");
+  const [rival, setRival] = useState<Character>("sparky");
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [hud, setHud] = useState<Hud>(INITIAL_HUD);
   const [banner, setBanner] = useState<{ id: number; text: string } | null>(null);
   const [announce, setAnnounce] = useState("");
@@ -66,7 +74,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
   const stick = useRef<{ x: number; z: number } | null>(null);
   const knobRef = useRef<HTMLSpanElement>(null);
 
-  const characters: [Character, Character] = [pick, other(pick)];
+  const characters: [Character, Character] = [pick, rival];
   const names = characters.map((c) => g[c]) as [string, string];
   const tags: [string, string] = mode === "cpu" ? [g.p1, g.cpuTag] : [g.p1, g.p2];
 
@@ -82,7 +90,11 @@ export default function Gonzgun({ onFinish }: GameProps) {
   const finish = useEffectEvent((s: GonzState) => {
     const [a, b] = [s.fighters[0].kos, s.fighters[1].kos];
     if (mode === "cpu") {
-      onFinish({ headline: s.winner === 0 ? g.winYou : g.winCpu, detail: g.detail(a, b), score: soloScore(s) });
+      onFinish({
+        headline: s.winner === 0 ? g.winYou : g.winCpu,
+        detail: `${g.detail(a, b)} ${g.level(g[difficulty])}`,
+        score: soloScore(s, difficulty),
+      });
     } else {
       const winner = s.winner ?? 0;
       onFinish({ headline: g.winPlayer(`${names[winner]} (${tags[winner]})`), detail: g.detail(a, b) });
@@ -90,9 +102,15 @@ export default function Gonzgun({ onFinish }: GameProps) {
   });
 
   const onEvent = useEffectEvent((e: GameEvent) => {
+    const show = (text: string) => setBanner((prev) => ({ id: (prev?.id ?? 0) + 1, text }));
+    if (e.type === "count") setAnnounce(String(e.n));
+    if (e.type === "go") {
+      show(g.go);
+      setAnnounce(g.go);
+    }
     if (e.type !== "ko") return;
     const by = e.target === 0 ? 1 : 0;
-    setBanner((prev) => ({ id: (prev?.id ?? 0) + 1, text: g.ko }));
+    show(e.streak >= 3 ? g.unstoppable : e.streak === 2 ? g.doubleKo : g.ko);
     setAnnounce(g.koBy(`${names[by]} (${tags[by]})`));
   });
 
@@ -110,7 +128,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
     import("./engine").then(({ Engine: EngineClass }) => {
       if (cancelled || !stageRef.current) return;
       try {
-        engineRef.current = new EngineClass(stageRef.current, { mode, characters, tags, reducedMotion }, readInput, {
+        engineRef.current = new EngineClass(stageRef.current, { mode, difficulty, characters, tags, reducedMotion }, readInput, {
           onHud: setHud,
           onEvent,
           onOver: finish,
@@ -230,6 +248,25 @@ export default function Gonzgun({ onFinish }: GameProps) {
   const choice =
     "flex min-h-24 cursor-pointer items-center gap-4 rounded-3xl border-4 bg-muted p-4 text-left transition-colors duration-(--duration-fast) aria-pressed:border-sun aria-pressed:bg-[#32324a] border-transparent";
 
+  const fighterPicker = (legend: string, value: Character, onPick: (c: Character) => void) => (
+    <fieldset>
+      <legend className="mb-3 font-display text-2xl font-semibold">{legend}</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {CHARACTERS.map((c) => (
+          <button key={c} type="button" aria-pressed={value === c} onClick={() => onPick(c)} className={choice}>
+            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-background">
+              <Portrait kind={c} className="size-14" />
+            </span>
+            <span>
+              <span className="block font-display text-xl font-semibold">{g[c]}</span>
+              <span className="block text-muted-foreground">{g[`${c}Hint`]}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+
   if (phase === "setup") {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 rounded-(--radius-card) bg-card p-6 sm:p-8">
@@ -247,22 +284,31 @@ export default function Gonzgun({ onFinish }: GameProps) {
             ))}
           </div>
         </fieldset>
-        <fieldset>
-          <legend className="mb-3 font-display text-2xl font-semibold">{mode === "cpu" ? g.pickFighter : g.pickFighterDuo}</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(["blocky", "sparky"] as const).map((c) => (
-              <button key={c} type="button" aria-pressed={pick === c} onClick={() => setPick(c)} className={choice}>
-                <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-background">
-                  <Portrait kind={c} className="size-14" />
-                </span>
-                <span>
-                  <span className="block font-display text-xl font-semibold">{g[c]}</span>
-                  <span className="block text-muted-foreground">{g[`${c}Hint`]}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        {mode === "cpu" && (
+          <fieldset>
+            <legend className="mb-3 font-display text-2xl font-semibold">{g.difficulty}</legend>
+            <div className="grid grid-cols-3 gap-3">
+              {(["easy", "normal", "hard"] as const).map((d, i) => (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={difficulty === d}
+                  onClick={() => setDifficulty(d)}
+                  className={`${choice} min-h-16 flex-col justify-center gap-1 text-center`}
+                >
+                  <span className="flex gap-0.5" aria-hidden="true">
+                    {Array.from({ length: 3 }, (_, k) => (
+                      <Icon key={k} name="zap" className={`size-5 ${k <= i ? "fill-sun text-sun" : "text-muted-foreground"}`} />
+                    ))}
+                  </span>
+                  <span className="font-display text-lg font-semibold">{g[d]}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {fighterPicker(mode === "cpu" ? g.pickFighter : g.pickFighterDuo, pick, setPick)}
+        {fighterPicker(mode === "cpu" ? g.pickRival : g.pickP2, rival, setRival)}
         <p className="text-muted-foreground">
           {mode === "cpu" ? (
             g.keysCpu
@@ -309,7 +355,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
                 className="mt-1 h-3 overflow-hidden rounded-full bg-muted"
               >
                 <div
-                  className={`h-full rounded-full transition-[width] duration-(--duration-fast) ${i === 0 ? "bg-sun" : "bg-sky"} ${i === 1 ? "ml-auto" : ""}`}
+                  className={`h-full rounded-full transition-[width] duration-(--duration-fast) ${hud.hp[i] <= LOW_HP ? "animate-pulse bg-accent" : i === 0 ? "bg-sun" : "bg-sky"} ${i === 1 ? "ml-auto" : ""}`}
                   style={{ width: `${(hud.hp[i] / RULES.maxHp) * 100}%` }}
                 />
               </div>
@@ -345,6 +391,15 @@ export default function Gonzgun({ onFinish }: GameProps) {
         {phase !== "playing" && (
           <p className="absolute inset-0 grid place-items-center p-6 text-center font-display text-xl">
             {phase === "loading" ? g.loading : g.noWebgl}
+          </p>
+        )}
+        {phase === "playing" && hud.countdown > 0 && (
+          <p
+            key={hud.countdown}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 grid animate-pop place-items-center font-display text-8xl font-bold text-foreground [text-shadow:0_6px_0_#7c3aed,0_0_30px_#a78bfa] sm:text-9xl"
+          >
+            {hud.countdown}
           </p>
         )}
         {banner && (

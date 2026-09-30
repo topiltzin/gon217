@@ -39,6 +39,66 @@
 
   --animate-float: float 4s ease-in-out infinite;
   --animate-pop: pop var(--duration-slow) var(--ease-bounce);
+  --animate-sway: sway 2.6s ease-in-out infinite;
+  --animate-crawl: crawl 0.9s ease-in-out infinite;
+  --animate-munch: munch 0.35s ease-in-out infinite;
+  --animate-shake: shake 0.12s linear infinite;
+  --animate-spin-slow: spin 6s linear infinite;
+  --animate-drop: drop 0.6s var(--ease-bounce);
+
+  @keyframes sway {
+    0%,
+    100% {
+      transform: rotate(-3deg);
+    }
+    50% {
+      transform: rotate(3deg);
+    }
+  }
+
+  @keyframes crawl {
+    0%,
+    100% {
+      transform: scaleX(1);
+    }
+    50% {
+      transform: scaleX(1.08) translateX(-2%);
+    }
+  }
+
+  @keyframes munch {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    50% {
+      transform: rotate(-6deg) translateX(-3%);
+    }
+  }
+
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-6%) rotate(-4deg);
+    }
+    75% {
+      transform: translateX(6%) rotate(4deg);
+    }
+  }
+
+  @keyframes drop {
+    from {
+      transform: translateY(-60%) scale(0.6);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
 
   @keyframes float {
     0%,

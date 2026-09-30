@@ -7,6 +7,7 @@ import {
   type Fighter,
   type GonzState,
   type Input,
+  type Difficulty,
   type Rng,
 } from "./logic";
 
@@ -20,7 +21,13 @@ const CELL = 0.5;
 const COLS = Math.round((ARENA.maxX - ARENA.minX) / CELL);
 const ROWS = Math.round((ARENA.maxZ - ARENA.minZ) / CELL);
 const THINK_EVERY = 0.2;
-const REACTION = 0.35;
+
+/** How sharp the CPU is: reaction time, how often it pulls the trigger when aimed, and how often it dodges. */
+const LEVELS: Record<Difficulty, { reaction: number; trigger: number; dodge: number; speed: number }> = {
+  easy: { reaction: 0.7, trigger: 0.3, dodge: 0.08, speed: 0.75 },
+  normal: { reaction: 0.35, trigger: 0.6, dodge: 0.3, speed: 1 },
+  hard: { reaction: 0.2, trigger: 0.85, dodge: 0.55, speed: 1 },
+};
 
 // Cells a fighter's centre can stand in (obstacles grown by the fighter's radius).
 const WALKABLE: boolean[] = Array.from({ length: COLS * ROWS }, (_, i) => {
@@ -143,15 +150,20 @@ export class CpuBrain {
   private push = 1;
   private wantFire = false;
 
+  private readonly level: (typeof LEVELS)[Difficulty];
+
   constructor(
     private readonly id: 0 | 1,
     private readonly rng: Rng,
-  ) {}
+    difficulty: Difficulty = "normal",
+  ) {
+    this.level = LEVELS[difficulty];
+  }
 
   input(s: GonzState, dt: number): Input {
     const me = s.fighters[this.id];
     const foe = s.fighters[this.id === 0 ? 1 : 0];
-    if (!me.alive || s.status !== "playing") {
+    if (!me.alive || s.status !== "playing" || s.countdown > 0) {
       this.seenFor = 0;
       return { mx: 0, mz: 0, fire: false, dash: false };
     }
@@ -173,8 +185,9 @@ export class CpuBrain {
     if (this.goal) this.move = pathDirection(me.x, me.z, this.goal.x, this.goal.z) ?? { x: 0, z: 0 };
     const dash = this.shouldDodge(s, me);
     const aimedAt = foe.alive && Math.abs(angleDiff(me.aim, Math.atan2(foe.z - me.z, foe.x - me.x))) < RULES.assistCone * 0.8;
-    const fire = this.wantFire && sees && aimedAt && this.seenFor >= REACTION && this.rng() < 0.6;
-    return { mx: this.move.x * this.push, mz: this.move.z * this.push, fire, dash };
+    const fire = this.wantFire && sees && aimedAt && this.seenFor >= this.level.reaction && this.rng() < this.level.trigger;
+    const push = dash ? 1 : this.push * this.level.speed;
+    return { mx: this.move.x * push, mz: this.move.z * push, fire, dash };
   }
 
   private think(s: GonzState, me: Fighter, foe: Fighter, sees: boolean) {
@@ -242,7 +255,7 @@ export class CpuBrain {
       if (miss > RULES.radius + 0.2) continue;
       this.dodged.add(b.id);
       if (this.dodged.size > 64) this.dodged = new Set([b.id]);
-      if (this.rng() > 0.3) continue;
+      if (this.rng() > this.level.dodge) continue;
       // Side-step perpendicular to the bullet.
       const side = this.rng() < 0.5 ? 1 : -1;
       const dx = (-b.vz / RULES.bulletSpeed) * side;

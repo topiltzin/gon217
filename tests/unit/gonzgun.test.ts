@@ -34,9 +34,14 @@ const run = (s: GonzState, inputs: [Input, Input], seconds: number, rng = () => 
   return s;
 };
 
+/** A new match with the "3, 2, 1" already over. */
+function ready(): GonzState {
+  return Object.assign(createGame(), { countdown: 0 });
+}
+
 /** Puts the two fighters facing each other on an open row. */
 function duel(distance = 6): GonzState {
-  const s = createGame();
+  const s = ready();
   const [a, b] = s.fighters;
   Object.assign(a, { x: -distance / 2, z: 1.8, aim: 0, invulnerable: 0 });
   Object.assign(b, { x: distance / 2, z: 1.8, aim: Math.PI, invulnerable: 0 });
@@ -65,8 +70,24 @@ describe("Gonzgun arena", () => {
 });
 
 describe("Gonzgun rules", () => {
-  it("walks with the stick and can't walk through walls", () => {
+  it("counts down 3, 2, 1 before anyone can move", () => {
     const s = createGame();
+    const x0 = s.fighters[0].x;
+    const events: string[] = [];
+    for (let i = 0; i < Math.round(RULES.countdown / DT) + 5; i++) {
+      step(s, [{ ...NO_INPUT, mx: 1, fire: true }, NO_INPUT], DT, () => 0.5);
+      for (const e of s.events) events.push(e.type === "count" ? String(e.n) : e.type);
+    }
+    expect(events.slice(0, 3)).toEqual(["2", "1", "go"]);
+    expect(s.shots[0]).toBeGreaterThan(0);
+    const early = createGame();
+    run(early, [{ ...NO_INPUT, mx: 1, fire: true }, NO_INPUT], RULES.countdown - 0.5);
+    expect(early.fighters[0].x).toBe(x0);
+    expect(early.bullets).toHaveLength(0);
+  });
+
+  it("walks with the stick and can't walk through walls", () => {
+    const s = ready();
     const x0 = s.fighters[0].x;
     run(s, [{ ...NO_INPUT, mx: 1 }, NO_INPUT], 0.5);
     expect(s.fighters[0].x).toBeCloseTo(x0 + RULES.speed * 0.5, 1);
@@ -75,7 +96,7 @@ describe("Gonzgun rules", () => {
   });
 
   it("a small push turns without walking", () => {
-    const s = createGame();
+    const s = ready();
     const { x, z } = s.fighters[0];
     run(s, [{ ...NO_INPUT, mz: 0.2 }, NO_INPUT], 0.5);
     expect(s.fighters[0].x).toBe(x);
@@ -131,6 +152,7 @@ describe("Gonzgun rules", () => {
     expect(s.fighters[1].alive).toBe(false);
     run(s, [NO_INPUT, NO_INPUT], RULES.respawnDelay + 0.1);
     expect(s.fighters[1]).toMatchObject({ alive: true, hp: RULES.maxHp, kos: 0 });
+    expect(s.fighters[0].streak).toBe(1);
     expect(s.fighters[1].invulnerable).toBeGreaterThan(0);
   });
 
@@ -143,6 +165,8 @@ describe("Gonzgun rules", () => {
     expect(s.status).toBe("over");
     expect(s.winner).toBe(0);
     expect(soloScore(s)).toBe(RULES.kosToWin * 100 + 300 + 200);
+    expect(soloScore(s, "hard")).toBeGreaterThan(soloScore(s, "easy"));
+    expect(s.events.find((e) => e.type === "ko")).toBeUndefined();
   });
 
   it("pickups heal and give triple shot", () => {
@@ -162,7 +186,7 @@ describe("Gonzgun rules", () => {
   });
 
   it("spawns pickups over time, at most two at once", () => {
-    const s = createGame();
+    const s = ready();
     run(s, [NO_INPUT, NO_INPUT], RULES.pickupEvery * 4, seeded(3));
     expect(s.pickups.length).toBe(RULES.maxPickups);
   });
@@ -170,15 +194,28 @@ describe("Gonzgun rules", () => {
 
 describe("Gonzgun CPU", () => {
   it("hunts you down around the furniture and scores knockouts", () => {
-    const s = createGame();
+    const s = ready();
     const rng = seeded(7);
     const brain = new CpuBrain(1, rng);
     for (let i = 0; i < 60 * 60 && s.fighters[1].kos === 0; i++) step(s, [NO_INPUT, brain.input(s, DT)], DT, rng);
     expect(s.fighters[1].kos).toBeGreaterThan(0);
   });
 
+  it("a hard CPU beats an easy one", () => {
+    let hardWins = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const s = ready();
+      const rng = seeded(seed);
+      const easy = new CpuBrain(0, rng, "easy");
+      const hard = new CpuBrain(1, rng, "hard");
+      for (let i = 0; i < 60 * 60 * 5 && s.status === "playing"; i++) step(s, [easy.input(s, DT), hard.input(s, DT)], DT, rng);
+      if (s.winner === 1) hardWins++;
+    }
+    expect(hardWins).toBeGreaterThanOrEqual(5);
+  });
+
   it("two CPUs finish a match", () => {
-    const s = createGame();
+    const s = ready();
     const rng = seeded(11);
     const a = new CpuBrain(0, rng);
     const b = new CpuBrain(1, rng);

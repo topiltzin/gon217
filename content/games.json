@@ -48,7 +48,7 @@
     "slug": "super-jump",
     "title": "Super Jump",
     "description": "Run, jump, and grab coins on the way to the flag!",
-    "instructions": "Move with the arrow keys or the buttons, jump with Space. Grab coins, hop on the slimes, and reach the flag!",
+    "instructions": "Arrow keys or buttons to move, Space to jump. Smash bricks, bump ? blocks for coins, hop on slimes, and reach the flag!",
     "icon": "flag",
     "color": "accent",
     "status": "available",
@@ -56,7 +56,7 @@
     "es": {
       "title": "Súper Salto",
       "description": "¡Corre, salta y junta monedas hasta llegar a la bandera!",
-      "instructions": "Muévete con las flechas o los botones y salta con Espacio. ¡Junta monedas, aplasta a las babosas y llega a la bandera!"
+      "instructions": "Flechas o botones para moverte, Espacio para saltar. ¡Rompe ladrillos, golpea los bloques ? por monedas, aplasta babosas y llega a la bandera!"
     }
   },
   {
