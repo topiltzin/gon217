@@ -1,7 +1,8 @@
 import { useId } from "react";
 
 /**
- * Gonzalo's brand mark: a chunky "G" whose crossbar is a yellow play button,
+ * Gonzalo's brand mark: a chunky white "G" with a yellow play triangle inside
+ * its bowl, pointing into the crossbar,
  * on a purple-to-magenta tile with the same tactile shadow as the site's buttons.
  * Keep app/icon.svg in sync with this drawing.
  */
@@ -23,14 +24,17 @@ export function LogoMark({ className = "size-11", title }: { className?: string;
       </defs>
       <rect x="2" y="6" width="60" height="56" rx="18" fill="#4c1d95" />
       <rect x="2" y="2" width="60" height="56" rx="18" fill={`url(#${gradient})`} />
+      {/* A white "G" with a straight crossbar (what keeps it readable when small)... */}
       <path
-        d="M42.5 21.4A15 15 0 1 0 45.8 33.6"
+        d="M41.8 21.2A14.5 14.5 0 1 0 45.5 32H37"
         fill="none"
         stroke="#ffffff"
         strokeWidth="9"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <path d="M30 24.5v13l11-6.5z" fill="#facc15" stroke="#facc15" strokeWidth="3" strokeLinejoin="round" />
+      {/* ...and a yellow play triangle in the bowl, pointing into the crossbar. */}
+      <path d="M24.5 27v10l7-5z" fill="#facc15" stroke="#facc15" strokeWidth="2.5" strokeLinejoin="round" />
       <path d="M52 7.5l1.6 4.3 4.4 1.6-4.4 1.6L52 19.3l-1.6-4.3-4.4-1.6 4.4-1.6z" fill="#facc15" />
     </svg>
   );
