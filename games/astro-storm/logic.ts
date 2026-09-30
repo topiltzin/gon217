@@ -1,275 +1,429 @@
 /**
- * Astro Storm: fly a ship, shoot the asteroids, survive the waves.
- * Plain data and functions (RNG injected) so the rules are unit-tested; the
- * component feeds input and draws. The field wraps around at every edge.
+ * Astro Storm 3D: a forward-flying space shooter. The ship stays near z = 0 and
+ * slides around a flight window (x across, y up); asteroids, enemy drones and
+ * bonus rings come at it from far ahead (negative z). Pure and deterministic
+ * given the RNG; the Three.js view only reads the state and its per-step events.
+ *
+ * `step` mutates the state it is given, returns it, and replaces `state.events`.
  */
 
-export const FIELD_W = 960;
-export const FIELD_H = 540;
-export const START_LIVES = 3;
-
-const TURN_SPEED = 4.2; // rad/s
-const THRUST = 420; // px/s²
-const DRAG = 0.55; // velocity kept per second, as a fraction
-const MAX_SPEED = 420;
-const SHIP_RADIUS = 13;
-const FIRE_INTERVAL = 0.17;
-const BULLET_SPEED = 720;
-const BULLET_LIFE = 0.75;
-const MAX_BULLETS = 24;
-const RESPAWN_SHIELD = 2.5;
-const WAVE_PAUSE = 1.6;
-const TRIPLE_SHOT_TIME = 8;
-const POWERUP_CHANCE = 0.08;
-const POWERUP_LIFE = 9;
-const POWERUP_RADIUS = 14;
-
-/** Asteroid sizes: 3 = large, 2 = medium, 1 = small. */
-export const ASTEROID_RADIUS: Record<1 | 2 | 3, number> = { 3: 50, 2: 28, 1: 15 };
-export const ASTEROID_POINTS: Record<1 | 2 | 3, number> = { 3: 20, 2: 50, 1: 100 };
-
 export type Rng = () => number;
-export type Input = { left: boolean; right: boolean; thrust: boolean; fire: boolean };
 
-export type Ship = { x: number; y: number; vx: number; vy: number; angle: number; shield: number; alive: boolean };
-export type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
-export type Asteroid = {
+export type Input = {
+  /** Steering stick, each axis -1..1 (y up). */
+  x: number;
+  y: number;
+  fire: boolean;
+  /** Barrel roll: a quick sideways dodge that shrugs off hits. */
+  roll: boolean;
+};
+
+export const NO_INPUT: Input = { x: 0, y: 0, fire: false, roll: false };
+
+export type Size = 1 | 2 | 3;
+
+export type Ship = {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  size: 1 | 2 | 3;
-  angle: number;
-  spin: number;
-  /** Radius multipliers around the outline, for a jagged rock shape. */
-  shape: number[];
+  cooldown: number;
+  invulnerable: number;
+  /** Seconds of barrel roll left, and which way it goes. */
+  roll: number;
+  rollDir: 1 | -1;
+  rollCooldown: number;
+  /** Seconds of triple shot left. */
+  triple: number;
 };
-export type PowerUp = { x: number; y: number; vx: number; vy: number; life: number };
 
-/** Things that happened this step, for the renderer's effects. */
-export type GameEvent =
+export type Asteroid = { id: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; size: Size; hp: number };
+export type Laser = { id: number; x: number; y: number; z: number; vx: number; vz: number; life: number };
+export type Drone = { id: number; x: number; y: number; z: number; baseX: number; phase: number; hp: number; hover: number; fireIn: number };
+export type Plasma = { id: number; x: number; y: number; z: number; vx: number; vy: number; vz: number };
+export type RingKind = "triple" | "life";
+export type Ring = { id: number; x: number; y: number; z: number; kind: RingKind };
+
+export type AstroEvent =
   | { type: "shot"; x: number; y: number }
-  | { type: "explode"; x: number; y: number; size: 1 | 2 | 3 }
-  | { type: "shipHit"; x: number; y: number }
+  | { type: "hit"; x: number; y: number; z: number }
+  | { type: "boom"; x: number; y: number; z: number; size: number }
+  | { type: "crash"; x: number; y: number }
+  | { type: "roll"; dir: 1 | -1 }
+  | { type: "ring"; kind: RingKind }
   | { type: "wave"; wave: number }
-  | { type: "powerUp"; x: number; y: number };
+  | { type: "enemyShot"; x: number; y: number; z: number }
+  | { type: "over" };
 
 export type AstroState = {
   ship: Ship;
-  bullets: Bullet[];
   asteroids: Asteroid[];
-  powerUps: PowerUp[];
+  lasers: Laser[];
+  drones: Drone[];
+  plasma: Plasma[];
+  rings: Ring[];
   score: number;
   lives: number;
   wave: number;
-  fireCooldown: number;
-  tripleShot: number;
-  /** Seconds until the ship respawns after a hit. */
-  respawn: number;
-  /** Seconds until the next wave, once the field is clear. */
-  nextWave: number;
-  status: "playing" | "lost";
-  events: GameEvent[];
+  /** Asteroids still to come this wave. */
+  toSpawn: number;
+  spawnIn: number;
+  droneIn: number;
+  ringIn: number;
+  /** Short breather between waves. */
+  waveBreak: number;
+  /** How fast the storm flies at the ship (units per second). */
+  speed: number;
+  time: number;
+  nextId: number;
+  status: "playing" | "over";
+  events: AstroEvent[];
 };
 
-export const wrap = (value: number, max: number) => ((value % max) + max) % max;
+/** Half-size of the window the ship can fly in. */
+export const FIELD = { x: 11, y: 6 } as const;
+export const SPAWN_Z = -240;
+const DESPAWN_Z = 14;
+export const START_LIVES = 3;
+export const MAX_LIVES = 5;
 
-/** Shortest wrapped distance between two points on the torus field. */
-export function distance(ax: number, ay: number, bx: number, by: number): number {
-  let dx = Math.abs(ax - bx);
-  let dy = Math.abs(ay - by);
-  if (dx > FIELD_W / 2) dx = FIELD_W - dx;
-  if (dy > FIELD_H / 2) dy = FIELD_H - dy;
-  return Math.hypot(dx, dy);
-}
+export const RULES = {
+  shipSpeed: 15,
+  shipAccel: 70,
+  shipRadius: 1,
+  fireCooldown: 0.14,
+  laserSpeed: 200,
+  laserLife: 1.4,
+  gunOffset: 0.95,
+  tripleAngle: 0.18,
+  tripleTime: 10,
+  rollTime: 0.55,
+  rollSpeed: 24,
+  rollCooldown: 1.2,
+  crashShield: 2,
+  droneHover: 6,
+  droneFireEvery: 1.7,
+  plasmaSpeed: 55,
+  ringRadius: 2.6,
+} as const;
 
-function newShip(): Ship {
-  return { x: FIELD_W / 2, y: FIELD_H / 2, vx: 0, vy: 0, angle: -Math.PI / 2, shield: RESPAWN_SHIELD, alive: true };
-}
+export const ASTEROID_RADIUS: Record<Size, number> = { 1: 1.1, 2: 2, 3: 3 };
+export const ASTEROID_POINTS: Record<Size, number> = { 3: 20, 2: 50, 1: 100 };
+export const DRONE_POINTS = 150;
+const DRONE_RADIUS = 1.5;
 
-export function makeAsteroid(rng: Rng, size: 1 | 2 | 3, x: number, y: number, speedScale = 1): Asteroid {
-  const angle = rng() * Math.PI * 2;
-  const speed = (40 + rng() * 50) * (4 - size) ** 0.5 * speedScale;
-  const points = 9 + Math.floor(rng() * 4);
+const asteroidsInWave = (wave: number) => 10 + wave * 5;
+const spawnEvery = (wave: number) => Math.max(0.35, 1.3 - wave * 0.12);
+const speedFor = (wave: number) => 42 + wave * 6;
+
+export function createGame(): AstroState {
   return {
-    x,
-    y,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    size,
-    angle: rng() * Math.PI * 2,
-    spin: (rng() - 0.5) * 1.6,
-    shape: Array.from({ length: points }, () => 0.72 + rng() * 0.38),
-  };
-}
-
-/** Large asteroids around the edges, never on top of the ship. Faster each wave. */
-export function spawnWave(state: AstroState, rng: Rng) {
-  const count = Math.min(3 + state.wave, 10);
-  const speedScale = 1 + (state.wave - 1) * 0.12;
-  for (let i = 0; i < count; i++) {
-    let x = 0;
-    let y = 0;
-    do {
-      x = rng() * FIELD_W;
-      y = rng() * FIELD_H;
-    } while (distance(x, y, state.ship.x, state.ship.y) < 190);
-    state.asteroids.push(makeAsteroid(rng, 3, x, y, speedScale));
-  }
-  state.events.push({ type: "wave", wave: state.wave });
-}
-
-export function createGame(rng: Rng): AstroState {
-  const state: AstroState = {
-    ship: newShip(),
-    bullets: [],
+    ship: { x: 0, y: 0, vx: 0, vy: 0, cooldown: 0, invulnerable: 0, roll: 0, rollDir: 1, rollCooldown: 0, triple: 0 },
     asteroids: [],
-    powerUps: [],
+    lasers: [],
+    drones: [],
+    plasma: [],
+    rings: [],
     score: 0,
     lives: START_LIVES,
     wave: 1,
-    fireCooldown: 0,
-    tripleShot: 0,
-    respawn: 0,
-    nextWave: 0,
+    toSpawn: asteroidsInWave(1),
+    spawnIn: 1.5,
+    droneIn: 999,
+    ringIn: 8,
+    waveBreak: 0,
+    speed: speedFor(1),
+    time: 0,
+    nextId: 1,
     status: "playing",
     events: [],
   };
-  spawnWave(state, rng);
-  return state;
 }
 
-function moveWrapped(o: { x: number; y: number; vx: number; vy: number }, dt: number) {
-  o.x = wrap(o.x + o.vx * dt, FIELD_W);
-  o.y = wrap(o.y + o.vy * dt, FIELD_H);
+/** Distance from point p to the segment a→b (all 3D). */
+export function segmentDistance(
+  ax: number, ay: number, az: number,
+  bx: number, by: number, bz: number,
+  px: number, py: number, pz: number,
+): number {
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const len2 = dx * dx + dy * dy + dz * dz;
+  const t = len2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy + (pz - az) * dz) / len2)) : 0;
+  return Math.hypot(ax + dx * t - px, ay + dy * t - py, az + dz * t - pz);
 }
 
-function fire(state: AstroState) {
-  const { ship } = state;
-  const angles = state.tripleShot > 0 ? [-0.18, 0, 0.18] : [0];
-  for (const offset of angles) {
-    if (state.bullets.length >= MAX_BULLETS) state.bullets.shift();
-    const a = ship.angle + offset;
-    const nose = SHIP_RADIUS + 2;
-    state.bullets.push({
-      x: wrap(ship.x + Math.cos(a) * nose, FIELD_W),
-      y: wrap(ship.y + Math.sin(a) * nose, FIELD_H),
-      vx: ship.vx + Math.cos(a) * BULLET_SPEED,
-      vy: ship.vy + Math.sin(a) * BULLET_SPEED,
-      life: BULLET_LIFE,
+export function makeAsteroid(s: AstroState, rng: Rng, size: Size = 3): Asteroid {
+  // Aim loosely at where the ship is, so the storm keeps coming at you.
+  const x = s.ship.x * 0.6 + (rng() * 2 - 1) * FIELD.x * 1.1;
+  const y = s.ship.y * 0.6 + (rng() * 2 - 1) * FIELD.y * 1.1;
+  return {
+    id: s.nextId++,
+    x,
+    y,
+    z: SPAWN_Z,
+    vx: (rng() * 2 - 1) * 1.5,
+    vy: (rng() * 2 - 1) * 1.2,
+    vz: s.speed * (0.8 + rng() * 0.4),
+    size,
+    hp: size,
+  };
+}
+
+function moveShip(s: AstroState, input: Input, dt: number) {
+  const ship = s.ship;
+  ship.cooldown = Math.max(0, ship.cooldown - dt);
+  ship.invulnerable = Math.max(0, ship.invulnerable - dt);
+  ship.rollCooldown = Math.max(0, ship.rollCooldown - dt);
+  ship.triple = Math.max(0, ship.triple - dt);
+
+  if (input.roll && ship.roll === 0 && ship.rollCooldown === 0) {
+    ship.rollDir = input.x < -0.2 ? -1 : input.x > 0.2 ? 1 : ship.vx < 0 ? -1 : 1;
+    ship.roll = RULES.rollTime;
+    ship.rollCooldown = RULES.rollCooldown;
+    s.events.push({ type: "roll", dir: ship.rollDir });
+  }
+
+  const mag = Math.min(1, Math.hypot(input.x, input.y));
+  const k = mag > 1e-6 ? mag / Math.hypot(input.x, input.y) : 0;
+  const tx = input.x * k * RULES.shipSpeed;
+  const ty = input.y * k * RULES.shipSpeed;
+  const a = RULES.shipAccel * dt;
+  ship.vx += Math.max(-a, Math.min(a, tx - ship.vx));
+  ship.vy += Math.max(-a, Math.min(a, ty - ship.vy));
+  let vx = ship.vx;
+  if (ship.roll > 0) {
+    vx += ship.rollDir * RULES.rollSpeed;
+    ship.roll = Math.max(0, ship.roll - dt);
+  }
+  ship.x = Math.max(-FIELD.x, Math.min(FIELD.x, ship.x + vx * dt));
+  ship.y = Math.max(-FIELD.y, Math.min(FIELD.y, ship.y + ship.vy * dt));
+}
+
+function fire(s: AstroState) {
+  const ship = s.ship;
+  const shots: [number, number][] = [
+    [-RULES.gunOffset, 0],
+    [RULES.gunOffset, 0],
+  ];
+  if (ship.triple > 0) shots.push([-RULES.gunOffset, -RULES.tripleAngle], [RULES.gunOffset, RULES.tripleAngle]);
+  for (const [dx, angle] of shots) {
+    s.lasers.push({
+      id: s.nextId++,
+      x: ship.x + dx,
+      y: ship.y - 0.1,
+      z: -1.5,
+      vx: Math.sin(angle) * RULES.laserSpeed,
+      vz: -Math.cos(angle) * RULES.laserSpeed,
+      life: RULES.laserLife,
     });
   }
-  state.fireCooldown = FIRE_INTERVAL;
-  state.events.push({ type: "shot", x: ship.x, y: ship.y });
+  ship.cooldown = RULES.fireCooldown;
+  s.events.push({ type: "shot", x: ship.x, y: ship.y });
 }
 
-function breakAsteroid(state: AstroState, index: number, rng: Rng) {
-  const rock = state.asteroids[index];
-  state.asteroids.splice(index, 1);
-  state.score += ASTEROID_POINTS[rock.size];
-  state.events.push({ type: "explode", x: rock.x, y: rock.y, size: rock.size });
-  if (rock.size > 1) {
-    const smaller = (rock.size - 1) as 1 | 2;
-    const speedScale = 1 + (state.wave - 1) * 0.12;
-    for (let i = 0; i < 2; i++) state.asteroids.push(makeAsteroid(rng, smaller, rock.x, rock.y, speedScale * 1.15));
+function shipHit(s: AstroState): boolean {
+  const ship = s.ship;
+  if (ship.invulnerable > 0 || ship.roll > 0) return false;
+  s.lives--;
+  ship.invulnerable = RULES.crashShield;
+  s.events.push({ type: "crash", x: ship.x, y: ship.y });
+  if (s.lives <= 0) {
+    s.status = "over";
+    s.events.push({ type: "over" });
   }
-  if (rock.size < 3 && rng() < POWERUP_CHANCE) {
-    const a = rng() * Math.PI * 2;
-    state.powerUps.push({ x: rock.x, y: rock.y, vx: Math.cos(a) * 30, vy: Math.sin(a) * 30, life: POWERUP_LIFE });
+  return true;
+}
+
+function destroyAsteroid(s: AstroState, a: Asteroid, rng: Rng, points: boolean, born: Asteroid[]) {
+  if (points) s.score += ASTEROID_POINTS[a.size];
+  s.events.push({ type: "boom", x: a.x, y: a.y, z: a.z, size: a.size });
+  if (a.size === 1 || !points) return;
+  const size = (a.size - 1) as Size;
+  for (const side of [-1, 1]) {
+    born.push({
+      id: s.nextId++,
+      x: a.x + side * ASTEROID_RADIUS[size],
+      y: a.y,
+      z: a.z,
+      vx: side * (4 + rng() * 3),
+      vy: (rng() * 2 - 1) * 3,
+      vz: a.vz * 0.9,
+      size,
+      hp: size,
+    });
   }
 }
 
-/** Advances the game by dt seconds. Clears and refills state.events. */
-export function step(state: AstroState, input: Input, dt: number, rng: Rng): AstroState {
-  state.events = [];
-  if (state.status !== "playing") return state;
-  const { ship } = state;
+function spawn(s: AstroState, dt: number, rng: Rng) {
+  if (s.waveBreak > 0) {
+    s.waveBreak -= dt;
+    return;
+  }
+  s.spawnIn -= dt;
+  if (s.toSpawn > 0 && s.spawnIn <= 0) {
+    s.asteroids.push(makeAsteroid(s, rng, rng() < 0.2 ? 2 : 3));
+    s.toSpawn--;
+    s.spawnIn = spawnEvery(s.wave) * (0.6 + rng() * 0.8);
+  }
+  s.droneIn -= dt;
+  if (s.wave >= 2 && s.toSpawn > 0 && s.droneIn <= 0) {
+    const x = (rng() * 2 - 1) * FIELD.x * 0.8;
+    s.drones.push({
+      id: s.nextId++,
+      x,
+      y: (rng() * 2 - 1) * FIELD.y * 0.7,
+      z: SPAWN_Z,
+      baseX: x,
+      phase: rng() * Math.PI * 2,
+      hp: 2,
+      hover: RULES.droneHover,
+      fireIn: 1,
+    });
+    s.droneIn = Math.max(4, 9 - s.wave);
+  }
+  s.ringIn -= dt;
+  if (s.ringIn <= 0) {
+    s.rings.push({
+      id: s.nextId++,
+      x: (rng() * 2 - 1) * FIELD.x * 0.7,
+      y: (rng() * 2 - 1) * FIELD.y * 0.7,
+      z: SPAWN_Z,
+      kind: rng() < 0.2 ? "life" : "triple",
+    });
+    s.ringIn = 12 + rng() * 6;
+  }
+}
 
-  // Ship
-  if (ship.alive) {
-    const turn = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-    ship.angle += turn * TURN_SPEED * dt;
-    if (input.thrust) {
-      ship.vx += Math.cos(ship.angle) * THRUST * dt;
-      ship.vy += Math.sin(ship.angle) * THRUST * dt;
+export function step(s: AstroState, input: Input, dt: number, rng: Rng): AstroState {
+  s.events = [];
+  s.time += dt;
+  const ship = s.ship;
+
+  if (s.status === "playing") {
+    moveShip(s, input, dt);
+    if (input.fire && ship.cooldown === 0) fire(s);
+    spawn(s, dt, rng);
+  }
+
+  // Lasers: sweep each step's path so fast beams can't skip past a rock.
+  const born: Asteroid[] = [];
+  const keptLasers: Laser[] = [];
+  for (const l of s.lasers) {
+    const ox = l.x, oz = l.z;
+    l.x += l.vx * dt;
+    l.z += l.vz * dt;
+    l.life -= dt;
+    let used = false;
+    for (const a of s.asteroids) {
+      if (a.hp <= 0 || segmentDistance(ox, l.y, oz, l.x, l.y, l.z, a.x, a.y, a.z) > ASTEROID_RADIUS[a.size]) continue;
+      used = true;
+      a.hp--;
+      if (a.hp <= 0) destroyAsteroid(s, a, rng, true, born);
+      else s.events.push({ type: "hit", x: l.x, y: l.y, z: a.z + ASTEROID_RADIUS[a.size] });
+      break;
     }
-    const keep = DRAG ** dt;
-    ship.vx *= keep;
-    ship.vy *= keep;
-    const speed = Math.hypot(ship.vx, ship.vy);
-    if (speed > MAX_SPEED) {
-      ship.vx *= MAX_SPEED / speed;
-      ship.vy *= MAX_SPEED / speed;
+    if (!used) {
+      for (const d of s.drones) {
+        if (d.hp <= 0 || segmentDistance(ox, l.y, oz, l.x, l.y, l.z, d.x, d.y, d.z) > DRONE_RADIUS) continue;
+        used = true;
+        d.hp--;
+        if (d.hp <= 0) {
+          s.score += DRONE_POINTS;
+          s.events.push({ type: "boom", x: d.x, y: d.y, z: d.z, size: 2 });
+        } else s.events.push({ type: "hit", x: d.x, y: d.y, z: d.z });
+        break;
+      }
     }
-    moveWrapped(ship, dt);
-    ship.shield = Math.max(0, ship.shield - dt);
-    state.fireCooldown = Math.max(0, state.fireCooldown - dt);
-    state.tripleShot = Math.max(0, state.tripleShot - dt);
-    if (input.fire && state.fireCooldown === 0) fire(state);
+    if (!used && l.life > 0) keptLasers.push(l);
   }
+  s.lasers = keptLasers;
 
-  // Bullets
-  for (const b of state.bullets) {
-    moveWrapped(b, dt);
-    b.life -= dt;
-  }
-  state.bullets = state.bullets.filter((b) => b.life > 0);
-
-  // Asteroids
-  for (const rock of state.asteroids) {
-    moveWrapped(rock, dt);
-    rock.angle += rock.spin * dt;
-  }
-
-  // Bullet hits
-  for (let i = state.bullets.length - 1; i >= 0; i--) {
-    const b = state.bullets[i];
-    const hit = state.asteroids.findIndex((r) => distance(b.x, b.y, r.x, r.y) < ASTEROID_RADIUS[r.size]);
-    if (hit >= 0) {
-      state.bullets.splice(i, 1);
-      breakAsteroid(state, hit, rng);
+  // Asteroids fly at the ship; hitting it costs a life (a roll or the crash shield protects).
+  const flying: Asteroid[] = [];
+  for (const a of s.asteroids) {
+    if (a.hp <= 0) continue;
+    const oz = a.z;
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    a.z += a.vz * dt;
+    const r = ASTEROID_RADIUS[a.size] + RULES.shipRadius;
+    if (s.status === "playing" && oz <= r && a.z >= -r && Math.hypot(a.x - ship.x, a.y - ship.y) < r) {
+      if (shipHit(s) || ship.roll > 0) {
+        destroyAsteroid(s, a, rng, ship.roll > 0, born);
+        continue;
+      }
     }
+    if (a.z < DESPAWN_Z) flying.push(a);
   }
+  s.asteroids = [...flying, ...born];
 
-  // Power-ups drift and fade; flying into one gives triple shot.
-  for (const p of state.powerUps) {
-    moveWrapped(p, dt);
-    p.life -= dt;
-    if (ship.alive && distance(p.x, p.y, ship.x, ship.y) < POWERUP_RADIUS + SHIP_RADIUS) {
-      p.life = 0;
-      state.tripleShot = TRIPLE_SHOT_TIME;
-      state.events.push({ type: "powerUp", x: p.x, y: p.y });
+  // Drones swoop in, hover weaving and shooting plasma, then leave.
+  const drones: Drone[] = [];
+  for (const d of s.drones) {
+    if (d.hp <= 0) continue;
+    d.phase += dt * 1.6;
+    d.x = d.baseX + Math.sin(d.phase) * 4;
+    if (d.z < -55) d.z += s.speed * 0.8 * dt;
+    else if (d.hover > 0) {
+      d.hover -= dt;
+      d.fireIn -= dt;
+      if (d.fireIn <= 0 && s.status === "playing") {
+        d.fireIn = RULES.droneFireEvery;
+        const dx = ship.x - d.x, dy = ship.y - d.y, dz = -d.z;
+        const len = Math.hypot(dx, dy, dz);
+        s.plasma.push({
+          id: s.nextId++,
+          x: d.x,
+          y: d.y,
+          z: d.z,
+          vx: (dx / len) * RULES.plasmaSpeed,
+          vy: (dy / len) * RULES.plasmaSpeed,
+          vz: (dz / len) * RULES.plasmaSpeed,
+        });
+        s.events.push({ type: "enemyShot", x: d.x, y: d.y, z: d.z });
+      }
+    } else d.z += s.speed * 1.5 * dt;
+    if (d.z < DESPAWN_Z) drones.push(d);
+  }
+  s.drones = drones;
+
+  const plasma: Plasma[] = [];
+  for (const p of s.plasma) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.z += p.vz * dt;
+    if (s.status === "playing" && Math.abs(p.z) < 1 && Math.hypot(p.x - ship.x, p.y - ship.y) < RULES.shipRadius + 0.4) {
+      shipHit(s);
+      continue;
     }
+    if (p.z < DESPAWN_Z) plasma.push(p);
   }
-  state.powerUps = state.powerUps.filter((p) => p.life > 0);
+  s.plasma = plasma;
 
-  // Ship collisions (the shield makes it briefly safe after respawning)
-  if (ship.alive && ship.shield === 0) {
-    const hit = state.asteroids.findIndex((r) => distance(ship.x, ship.y, r.x, r.y) < ASTEROID_RADIUS[r.size] * 0.85 + SHIP_RADIUS);
-    if (hit >= 0) {
-      ship.alive = false;
-      state.lives -= 1;
-      state.events.push({ type: "shipHit", x: ship.x, y: ship.y });
-      breakAsteroid(state, hit, rng);
-      if (state.lives <= 0) state.status = "lost";
-      else state.respawn = 1.5;
+  // Fly through a ring for a bonus.
+  const rings: Ring[] = [];
+  for (const ring of s.rings) {
+    const oz = ring.z;
+    ring.z += s.speed * dt;
+    if (s.status === "playing" && oz <= 0 && ring.z >= 0 && Math.hypot(ring.x - ship.x, ring.y - ship.y) < RULES.ringRadius) {
+      if (ring.kind === "triple") ship.triple = RULES.tripleTime;
+      else s.lives = Math.min(MAX_LIVES, s.lives + 1);
+      s.events.push({ type: "ring", kind: ring.kind });
+      continue;
     }
+    if (ring.z < DESPAWN_Z) rings.push(ring);
   }
+  s.rings = rings;
 
-  // Respawn once the pause is over
-  if (!ship.alive && state.status === "playing") {
-    state.respawn -= dt;
-    if (state.respawn <= 0) state.ship = newShip();
+  // Next wave once this one has come and gone.
+  if (s.status === "playing" && s.toSpawn === 0 && s.asteroids.length === 0 && s.drones.length === 0 && s.waveBreak <= 0) {
+    s.wave++;
+    s.toSpawn = asteroidsInWave(s.wave);
+    s.speed = speedFor(s.wave);
+    s.waveBreak = 2;
+    s.spawnIn = 0.5;
+    s.droneIn = 3;
+    s.events.push({ type: "wave", wave: s.wave });
   }
-
-  // Next wave
-  if (state.asteroids.length === 0 && state.status === "playing") {
-    if (state.nextWave === 0) state.nextWave = WAVE_PAUSE;
-    state.nextWave = Math.max(0, state.nextWave - dt);
-    if (state.nextWave === 0) {
-      state.wave += 1;
-      spawnWave(state, rng);
-    }
-  }
-  return state;
+  return s;
 }

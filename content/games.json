@@ -17,16 +17,16 @@
   {
     "slug": "astro-storm",
     "title": "Astro Storm",
-    "description": "Pilot a neon ship and blast the asteroid storm!",
-    "instructions": "Turn and thrust to fly, and fire to split the asteroids into smaller rocks. Clear every wave, and grab gold stars for triple shot. Don't get hit!",
+    "description": "Fly a 3D starfighter through an asteroid storm!",
+    "instructions": "Steer, fire lasers and barrel-roll through rocks and drones. Switch between cockpit and outside view. Fly through gold rings for triple shot!",
     "icon": "rocket",
     "color": "sky",
     "status": "new",
     "featured": true,
     "es": {
       "title": "Tormenta Astral",
-      "description": "¡Pilotea una nave neón y destruye la tormenta de asteroides!",
-      "instructions": "Gira y acelera para volar, y dispara para partir los asteroides. Limpia cada oleada y toma estrellas doradas para triple disparo. ¡Que no te golpeen!"
+      "description": "¡Pilotea una nave 3D en una tormenta de asteroides!",
+      "instructions": "Dirige, dispara láseres y haz giros de barril entre rocas y drones. Cambia entre la cabina y la vista de afuera. ¡Pasa por aros dorados!"
     }
   },
   {

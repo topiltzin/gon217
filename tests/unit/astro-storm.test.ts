@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   ASTEROID_POINTS,
-  ASTEROID_RADIUS,
-  FIELD_H,
-  FIELD_W,
+  DRONE_POINTS,
+  FIELD,
+  MAX_LIVES,
+  NO_INPUT,
+  RULES,
   START_LIVES,
   createGame,
-  distance,
-  makeAsteroid,
+  segmentDistance,
   step,
-  wrap,
   type AstroState,
   type Input,
   type Rng,
@@ -23,136 +23,127 @@ function seeded(seed = 1): Rng {
   };
 }
 
-const idle: Input = { left: false, right: false, thrust: false, fire: false };
-const run = (state: AstroState, input: Input, seconds: number, rng: Rng) => {
-  for (let i = 0; i < Math.round(seconds * 60); i++) step(state, input, 1 / 60, rng);
-  return state;
+const DT = 1 / 60;
+const run = (s: AstroState, input: Input, seconds: number, rng: Rng = seeded()) => {
+  for (let i = 0; i < Math.round(seconds / DT); i++) step(s, input, DT, rng);
+  return s;
 };
 
-describe("Astro Storm", () => {
-  it("starts with lives, wave 1, and large asteroids away from the ship", () => {
-    const s = createGame(seeded());
+/** A quiet sky: nothing spawns unless a test adds it. */
+function calm(): AstroState {
+  return { ...createGame(), toSpawn: 0, spawnIn: 999, ringIn: 999, droneIn: 999, waveBreak: 999 };
+}
+
+const rock = (s: AstroState, x: number, y: number, z: number, size: 1 | 2 | 3 = 3, vz = 0) =>
+  s.asteroids.push({ id: s.nextId++, x, y, z, vx: 0, vy: 0, vz, size, hp: size });
+
+describe("Astro Storm 3D", () => {
+  it("starts in the middle with full lives at wave 1", () => {
+    const s = createGame();
     expect(s.lives).toBe(START_LIVES);
     expect(s.wave).toBe(1);
-    expect(s.asteroids.length).toBe(4);
-    for (const r of s.asteroids) {
-      expect(r.size).toBe(3);
-      expect(distance(r.x, r.y, s.ship.x, s.ship.y)).toBeGreaterThanOrEqual(190);
-    }
+    expect(s.ship).toMatchObject({ x: 0, y: 0 });
+    expect(s.toSpawn).toBeGreaterThan(0);
   });
 
-  it("wraps around the edges, and measures distance across them", () => {
-    expect(wrap(-10, FIELD_W)).toBe(FIELD_W - 10);
-    expect(wrap(FIELD_H + 5, FIELD_H)).toBe(5);
-    expect(distance(5, 100, FIELD_W - 5, 100)).toBe(10);
+  it("steers within the flight window", () => {
+    const s = run(calm(), { ...NO_INPUT, x: 1, y: 1 }, 3);
+    expect(s.ship.x).toBe(FIELD.x);
+    expect(s.ship.y).toBe(FIELD.y);
   });
 
-  it("turns, thrusts, and slows down by itself", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    s.asteroids = [];
-    s.nextWave = 99;
-    const angle = s.ship.angle;
-    run(s, { ...idle, right: true }, 0.5, rng);
-    expect(s.ship.angle).toBeGreaterThan(angle);
-    run(s, { ...idle, thrust: true }, 0.5, rng);
-    const fast = Math.hypot(s.ship.vx, s.ship.vy);
-    expect(fast).toBeGreaterThan(100);
-    run(s, idle, 2, rng);
-    expect(Math.hypot(s.ship.vx, s.ship.vy)).toBeLessThan(fast / 2);
+  it("measures distance to a segment", () => {
+    expect(segmentDistance(0, 0, 0, 0, 0, -10, 1, 0, -5)).toBeCloseTo(1);
+    expect(segmentDistance(0, 0, 0, 0, 0, -10, 0, 0, 5)).toBeCloseTo(5);
   });
 
-  it("fires at a limited rate, and bullets expire", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    s.asteroids = [];
-    s.nextWave = 99;
-    let shots = 0;
-    for (let i = 0; i < 60; i++) {
-      step(s, { ...idle, fire: true }, 1 / 60, rng);
-      shots += s.events.filter((e) => e.type === "shot").length;
-    }
-    expect(shots).toBeGreaterThanOrEqual(5);
-    expect(shots).toBeLessThanOrEqual(7);
-    expect(s.bullets.length).toBeGreaterThan(0);
-    run(s, idle, 1, rng);
-    expect(s.bullets.length).toBe(0);
-  });
-
-  it("a hit splits a big asteroid into two medium ones and scores", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    const rock = makeAsteroid(rng, 3, s.ship.x + 120, s.ship.y, 0);
-    rock.vx = rock.vy = 0;
-    s.asteroids = [rock];
-    s.ship.angle = 0; // facing the rock
-    run(s, { ...idle, fire: true }, 0.4, rng);
+  it("fires twin lasers that break a big rock into two smaller ones", () => {
+    const s = calm();
+    rock(s, 0, 0, -60);
+    step(s, { ...NO_INPUT, fire: true }, DT, seeded());
+    expect(s.lasers).toHaveLength(2);
+    expect(s.events).toContainEqual({ type: "shot", x: 0, y: 0 });
+    run(s, { ...NO_INPUT, fire: true }, 1);
     expect(s.score).toBeGreaterThanOrEqual(ASTEROID_POINTS[3]);
-    expect(s.asteroids.filter((r) => r.size === 2).length).toBeGreaterThanOrEqual(1);
-    expect(s.asteroids.some((r) => r.size === 3)).toBe(false);
+    expect(s.asteroids.every((a) => a.size < 3)).toBe(true);
   });
 
-  it("small asteroids just vanish", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    const rock = makeAsteroid(rng, 1, s.ship.x + 80, s.ship.y, 0);
-    rock.vx = rock.vy = 0;
-    s.asteroids = [rock, makeAsteroid(rng, 3, 20, 20, 0)];
-    s.ship.angle = 0;
-    run(s, { ...idle, fire: true }, 0.3, rng);
+  it("small rocks are worth the most", () => {
+    const s = calm();
+    rock(s, 0, 0, -40, 1);
+    run(s, { ...NO_INPUT, fire: true }, 0.5);
     expect(s.score).toBe(ASTEROID_POINTS[1]);
-    expect(s.asteroids.every((r) => r.size === 3)).toBe(true);
+    expect(s.asteroids).toHaveLength(0);
   });
 
-  it("the respawn shield protects the ship, then a collision costs a life", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    const rock = makeAsteroid(rng, 3, s.ship.x, s.ship.y, 0);
-    rock.vx = rock.vy = 0;
-    s.asteroids = [rock];
-    step(s, idle, 1 / 60, rng);
-    expect(s.lives).toBe(START_LIVES); // still shielded
-    s.ship.shield = 0;
-    step(s, idle, 1 / 60, rng);
+  it("a rock hitting the ship costs a life, then the shield protects", () => {
+    const s = calm();
+    rock(s, 0, 0, -20, 3, 40);
+    run(s, NO_INPUT, 1);
     expect(s.lives).toBe(START_LIVES - 1);
-    expect(s.ship.alive).toBe(false);
-    expect(s.events.some((e) => e.type === "shipHit")).toBe(true);
-    s.asteroids = [makeAsteroid(rng, 3, 20, 20, 0)];
-    run(s, idle, 2, rng);
-    expect(s.ship.alive).toBe(true);
-    expect(s.ship.shield).toBeGreaterThan(0);
+    expect(s.ship.invulnerable).toBeGreaterThan(0);
+    rock(s, s.ship.x, s.ship.y, -10, 3, 40);
+    run(s, NO_INPUT, 0.5);
+    expect(s.lives).toBe(START_LIVES - 1);
   });
 
-  it("losing the last ship ends the game", () => {
-    const rng = seeded();
-    const s = createGame(rng);
+  it("a barrel roll dodges sideways and smashes rocks for points", () => {
+    const s = calm();
+    step(s, { ...NO_INPUT, x: 1, roll: true }, DT, seeded());
+    expect(s.events).toContainEqual({ type: "roll", dir: 1 });
+    rock(s, s.ship.x + 1, 0, -3, 1, 40);
+    run(s, NO_INPUT, 0.2);
+    expect(s.lives).toBe(START_LIVES);
+    expect(s.score).toBe(ASTEROID_POINTS[1]);
+    expect(s.ship.x).toBeGreaterThan(2);
+  });
+
+  it("gold rings give triple shot and blue rings a life", () => {
+    const s = calm();
+    s.rings.push({ id: 90, x: 0, y: 0, z: -5, kind: "triple" }, { id: 91, x: 0, y: 0, z: -8, kind: "life" });
+    run(s, NO_INPUT, 0.5);
+    expect(s.ship.triple).toBeGreaterThan(0);
+    expect(s.lives).toBe(START_LIVES + 1);
+    step(s, { ...NO_INPUT, fire: true }, DT, seeded());
+    expect(s.lasers).toHaveLength(4);
+    s.lives = MAX_LIVES;
+    s.rings.push({ id: 92, x: 0, y: 0, z: -5, kind: "life" });
+    run(s, NO_INPUT, 0.5);
+    expect(s.lives).toBe(MAX_LIVES);
+  });
+
+  it("drones hover, shoot plasma at the ship, and can be shot down", () => {
+    const s = calm();
+    s.drones.push({ id: 80, x: 0, y: 0, z: -50, baseX: 0, phase: 0, hp: 2, hover: RULES.droneHover, fireIn: 0.1 });
+    run(s, NO_INPUT, 0.3);
+    expect(s.plasma.length).toBeGreaterThan(0);
+    // Hold the drone still in front of the guns (it normally weaves).
+    for (let i = 0; i < 120 && s.drones.length; i++) {
+      s.drones[0].phase = -DT * 1.6;
+      step(s, { ...NO_INPUT, fire: true }, DT, seeded());
+    }
+    expect(s.drones).toHaveLength(0);
+    expect(s.score).toBe(DRONE_POINTS);
+  });
+
+  it("losing every life ends the game", () => {
+    const s = calm();
     s.lives = 1;
-    s.ship.shield = 0;
-    const rock = makeAsteroid(rng, 2, s.ship.x, s.ship.y, 0);
-    s.asteroids = [rock];
-    step(s, idle, 1 / 60, rng);
-    expect(s.status).toBe("lost");
-    const frozen = s.score;
-    run(s, { ...idle, fire: true }, 1, rng);
-    expect(s.score).toBe(frozen);
+    rock(s, 0, 0, -10, 3, 40);
+    run(s, NO_INPUT, 1);
+    expect(s.status).toBe("over");
   });
 
-  it("clearing the field starts a bigger, faster wave after a short pause", () => {
-    const rng = seeded();
-    const s = createGame(rng);
-    const firstSpeed = Math.max(...s.asteroids.map((r) => Math.hypot(r.vx, r.vy)));
-    s.asteroids = [];
-    run(s, idle, 1, rng);
-    expect(s.wave).toBe(1);
-    run(s, idle, 1, rng);
+  it("clears a wave and starts a faster one", () => {
+    const s = createGame();
+    const rng = seeded(4);
+    const speed = s.speed;
+    // Dodge nothing, just survive: the rocks fly past and the wave ends.
+    for (let i = 0; i < 60 * 120 && s.wave === 1; i++) {
+      s.ship.invulnerable = 1;
+      step(s, NO_INPUT, DT, rng);
+    }
     expect(s.wave).toBe(2);
-    expect(s.asteroids.length).toBe(5);
-    expect(s.asteroids.every((r) => r.size === 3)).toBe(true);
-    expect(Math.max(...s.asteroids.map((r) => Math.hypot(r.vx, r.vy)))).toBeGreaterThan(firstSpeed * 0.8);
-  });
-
-  it("collision radii get smaller with size", () => {
-    expect(ASTEROID_RADIUS[3]).toBeGreaterThan(ASTEROID_RADIUS[2]);
-    expect(ASTEROID_RADIUS[2]).toBeGreaterThan(ASTEROID_RADIUS[1]);
+    expect(s.speed).toBeGreaterThan(speed);
   });
 });

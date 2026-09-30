@@ -187,37 +187,40 @@ test.describe("Super Jump", () => {
 });
 
 test.describe("Astro Storm", () => {
-  const status = (page: Page) => page.getByRole("status");
+  test("pick outside or cockpit view before launching", async ({ page }, testInfo) => {
+    const touch = testInfo.project.name === "mobile";
+    await page.goto("/en/games/astro-storm");
+    await press(page.getByRole("button", { name: "Play", exact: true }), touch);
+    const outside = page.getByRole("button", { name: /Outside/ });
+    const cockpit = page.getByRole("button", { name: /Cockpit/ });
+    await expect(outside).toHaveAttribute("aria-pressed", "true");
+    await press(cockpit, touch);
+    await expect(cockpit).toHaveAttribute("aria-pressed", "true");
+    await expect(outside).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("button", { name: "Launch!" })).toBeVisible();
+  });
+});
 
-  test("keyboard: spin and fire until an asteroid breaks", async ({ page }) => {
+// Three.js in software rendering: runs in the webgl project (see playwright.config.ts).
+test.describe("Astro Storm flight @webgl", () => {
+  test.setTimeout(180_000);
+
+  test("launches, shoots rocks, and switches to the cockpit", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/en/games/astro-storm");
     await startWithKeyboard(page);
-    await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
-    await expect(status(page)).toHaveText(/^0 points, 3 ships left, wave 1$/);
-    await page.keyboard.down("ArrowLeft");
+    await page.getByRole("button", { name: "Launch!" }).click();
+    await expect(page.getByRole("img", { name: /asteroid storm/i })).toBeVisible();
+    await expect(page.getByRole("status")).toHaveText(/^0 points, 3 ships left, wave 1$/, { timeout: 60_000 });
+    const scrolled = await page.evaluate(() => window.scrollY);
     await page.keyboard.down("Space");
-    await expect(status(page)).toHaveText(/^[1-9]\d* points/, { timeout: 30_000 });
+    await expect(page.getByRole("status")).toHaveText(/^[1-9]\d* points/, { timeout: 120_000 });
     await page.keyboard.up("Space");
-    await page.keyboard.up("ArrowLeft");
-  });
-
-  test("on-screen buttons fly and fire", async ({ page }, testInfo) => {
-    await page.goto("/en/games/astro-storm");
-    await press(page.getByRole("button", { name: "Play", exact: true }), testInfo.project.name === "mobile");
-    for (const name of ["Turn left", "Turn right", "Thrust", "Fire"]) {
-      await expect(page.getByRole("button", { name })).toBeVisible();
-    }
-    const fire = (await page.getByRole("button", { name: "Fire" }).boundingBox())!;
-    const turn = (await page.getByRole("button", { name: "Turn right" }).boundingBox())!;
-    // Buttons act while held: turn a little, then hold fire.
-    await page.mouse.move(turn.x + turn.width / 2, turn.y + turn.height / 2);
-    await page.mouse.down();
-    await page.waitForTimeout(300);
-    await page.mouse.up();
-    await page.mouse.move(fire.x + fire.width / 2, fire.y + fire.height / 2);
-    await page.mouse.down();
-    await expect(status(page)).toHaveText(/points, 3 ships left/);
-    await page.mouse.up();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+    await page.keyboard.press("KeyC");
+    await expect(page.getByRole("button", { name: /Switch view: Cockpit/ })).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });
 
