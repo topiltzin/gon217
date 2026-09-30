@@ -1,4 +1,3 @@
-import { LogoMark } from "@/components/Logo";
 import { ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import type { Site } from "@/lib/content";
@@ -29,8 +28,15 @@ export function Hero({ site, locale }: { site: Site; locale: Locale }) {
         <span className="absolute top-10 right-2 grid size-24 rotate-12 place-items-center rounded-3xl bg-mint text-on-mint shadow-[0_8px_0_0_#047857]">
           <Icon name="grid" className="size-12" />
         </span>
-        <span className="absolute inset-0 m-auto size-44 animate-float drop-shadow-[0_12px_24px_rgb(192_38_211/0.35)]">
-          <LogoMark className="size-full" />
+        <span className="absolute inset-0 m-auto size-56 animate-float drop-shadow-[0_12px_24px_rgb(192_38_211/0.35)]">
+          {/* eslint-disable-next-line @next/next/no-img-element -- tiny pixel-art PNG, must stay unsmoothed */}
+          <img
+            src="/sprites/gonzalo-face.png"
+            alt=""
+            width={48}
+            height={48}
+            className="size-full [image-rendering:pixelated]"
+          />
         </span>
         <span className="absolute bottom-4 left-10 grid size-24 rotate-6 place-items-center rounded-3xl bg-sky text-on-sky shadow-[0_8px_0_0_#0369a1]">
           <Icon name="brain" className="size-12" />
