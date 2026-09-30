@@ -81,15 +81,15 @@ export type AstroState = {
 };
 
 /** Half-size of the window the ship can fly in. */
-export const FIELD = { x: 11, y: 6 } as const;
+export const FIELD = { x: 18, y: 10 } as const;
 export const SPAWN_Z = -240;
 const DESPAWN_Z = 14;
 export const START_LIVES = 3;
 export const MAX_LIVES = 5;
 
 export const RULES = {
-  shipSpeed: 15,
-  shipAccel: 70,
+  shipSpeed: 21,
+  shipAccel: 110,
   shipRadius: 1,
   fireCooldown: 0.14,
   laserSpeed: 200,

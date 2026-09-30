@@ -455,9 +455,9 @@ export class View {
 
     // Ship attitude: bank into turns, pitch with climbs, spin during a barrel roll.
     const rollSpin = ship.roll > 0 ? (1 - ship.roll / RULES.rollTime) * Math.PI * 2 * -ship.rollDir : 0;
-    const bank = -ship.vx * 0.045 + rollSpin;
+    const bank = -ship.vx * 0.035 + rollSpin;
     this.ship.position.set(ship.x, ship.y, 0);
-    this.ship.rotation.set(ship.vy * 0.03, -ship.vx * 0.012, bank);
+    this.ship.rotation.set(ship.vy * 0.025, -ship.vx * 0.012, bank);
     this.ship.visible = this.mode === "chase" && s.status === "playing" && (ship.invulnerable === 0 || Math.sin(t * 30) > -0.2);
     this.ship.traverse((o) => {
       if (o.name === "flame") (o as Sprite).scale.setScalar(0.8 + Math.random() * 0.35);
@@ -514,8 +514,9 @@ export class View {
     if (this.mode === "chase") {
       this.camera.fov = 70;
       const ease = Math.min(1, dt * 6);
-      this.camPos.lerp(new Vector3(ship.x * 0.85, ship.y * 0.85 + 2.3, 9), ease);
-      this.camLook.lerp(new Vector3(ship.x * 0.6, ship.y * 0.6 + 0.8, -25), ease);
+      // The camera follows only part of the way, so the ship visibly flies across the screen.
+      this.camPos.lerp(new Vector3(ship.x * 0.62, ship.y * 0.78 + 2.4, 11), ease);
+      this.camLook.lerp(new Vector3(ship.x * 0.45, ship.y * 0.6 + 0.6, -25), ease);
       this.camera.position.set(this.camPos.x + jitter(), this.camPos.y + jitter(), this.camPos.z);
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(this.camLook);
