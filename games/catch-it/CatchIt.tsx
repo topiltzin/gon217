@@ -4,16 +4,22 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useT } from "@/components/I18nProvider";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
-import { CELLS, ROUND_MS, advance, catchTarget, startRound } from "./logic";
+import { playSfx } from "@/lib/sfx";
+import { CELLS, ROUND_MS, advance, catchTarget, startRound, type CatchState } from "./logic";
 
 const TICK_MS = 100;
 // If the tab was in the background, don't let the clock jump ahead.
 const MAX_STEP_MS = 250;
 
-export default function CatchIt({ onFinish }: GameProps) {
+export default function CatchIt({ onFinish, paused }: GameProps) {
   const [state, setState] = useState(startRound);
   const boardRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(paused);
   const t = useT();
+
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     let last = performance.now();
@@ -21,17 +27,35 @@ export default function CatchIt({ onFinish }: GameProps) {
       const now = performance.now();
       const dt = Math.min(now - last, MAX_STEP_MS);
       last = now;
+      if (pausedRef.current) return;
       const roll = Math.random();
       setState((s) => advance(s, dt, () => roll));
     }, TICK_MS);
     return () => clearInterval(id);
   }, []);
 
+  // A tick for each of the last five seconds.
+  const secondsLeftNow = Math.ceil((ROUND_MS - state.elapsed) / 1000);
+  useEffect(() => {
+    if (secondsLeftNow <= 5 && secondsLeftNow > 0) playSfx("tick");
+  }, [secondsLeftNow]);
+
+  // A catch sound whenever the score goes up.
+  useEffect(() => {
+    if (state.score > 0) playSfx("catch");
+  }, [state.score]);
+
+  /** Catches only while not paused (the pause menu covers the board anyway). */
+  function tryCatch(s: CatchState, cell: number): CatchState {
+    return pausedRef.current ? s : catchTarget(s, cell);
+  }
+
   const reportScore = useEffectEvent(() => {
     onFinish({
       headline: state.score >= 15 ? t.catchIt.speedy : t.catchIt.timesUp,
       detail: t.catchIt.caught(state.score),
       score: state.score,
+      stats: { score: state.score },
     });
   });
 
@@ -49,18 +73,18 @@ export default function CatchIt({ onFinish }: GameProps) {
         !active || active === document.body || active.tagName === "H1" || boardRef.current?.contains(active);
       if (!onBoard) return;
       e.preventDefault();
-      setState((s) => (s.target === null ? s : catchTarget(s, s.target)));
+      setState((s) => (s.target === null ? s : tryCatch(s, s.target)));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const secondsLeft = Math.ceil((ROUND_MS - state.elapsed) / 1000);
+  const secondsLeft = secondsLeftNow;
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="mb-3 flex justify-center gap-3 font-display text-xl font-semibold">
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-2">
+      <div className="mb-3 flex justify-center gap-3 font-display text-xl">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2">
           <Icon name="clock" className="size-5 text-sky" />
           <span>
             {secondsLeft}
@@ -68,7 +92,7 @@ export default function CatchIt({ onFinish }: GameProps) {
             <span aria-hidden="true">s</span>
           </span>
         </span>
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-2">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2">
           <Icon name="star" className="size-5 text-sun" />
           <span>
             {state.score}
@@ -92,10 +116,10 @@ export default function CatchIt({ onFinish }: GameProps) {
               aria-label={t.catchIt.spot(i + 1, hasStar)}
               // Pointer down feels instant on touch screens; click covers everything else.
               onPointerDown={(e) => {
-                if (e.pointerType !== "mouse") setState((s) => catchTarget(s, i));
+                if (e.pointerType !== "mouse") setState((s) => tryCatch(s, i));
               }}
-              onClick={() => setState((s) => catchTarget(s, i))}
-              className="grid aspect-square cursor-pointer touch-manipulation place-items-center rounded-3xl bg-card shadow-inner shadow-black/40"
+              onClick={() => setState((s) => tryCatch(s, i))}
+              className="grid aspect-square cursor-pointer touch-manipulation place-items-center rounded-xl border border-white/10 bg-card shadow-inner shadow-black/40 transition-colors duration-(--duration-fast) hover:border-secondary/50"
             >
               {hasStar && (
                 <span key={state.targetUntil} className="grid size-4/5 animate-pop place-items-center">
@@ -114,8 +138,8 @@ export default function CatchIt({ onFinish }: GameProps) {
         })}
       </div>
       <p className="mt-4 text-center text-muted-foreground">
-        {t.catchIt.keyboard} <kbd className="font-bold text-foreground">Enter</kbd> {t.catchIt.or}{" "}
-        <kbd className="font-bold text-foreground">Space</kbd> {t.catchIt.toCatch}
+        {t.catchIt.keyboard} <kbd className="rounded border border-white/20 px-1.5 font-semibold text-foreground">Enter</kbd> {t.catchIt.or}{" "}
+        <kbd className="rounded border border-white/20 px-1.5 font-semibold text-foreground">Space</kbd> {t.catchIt.toCatch}
       </p>
     </div>
   );

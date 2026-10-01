@@ -4,7 +4,9 @@ import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { readPad } from "@/games/gamepad";
 import type { GameProps } from "@/games/types";
+import { useSoundOn } from "@/lib/settings";
 import type { Engine, Hud } from "./engine";
 import { START_LIVES, type AstroEvent, type AstroState, type Input } from "./logic";
 import type { ViewMode } from "./view";
@@ -81,7 +83,7 @@ function CockpitFrame({ triple }: { triple: boolean }) {
   );
 }
 
-export default function AstroStorm({ onFinish }: GameProps) {
+export default function AstroStorm({ onFinish, paused }: GameProps) {
   const t = useT();
   const a = t.astro;
   const [phase, setPhase] = useState<Phase>("setup");
@@ -95,19 +97,32 @@ export default function AstroStorm({ onFinish }: GameProps) {
   const stick = useRef<{ x: number; y: number } | null>(null);
   const knobRef = useRef<HTMLSpanElement>(null);
 
+  // Keyboard, touch stick and the first controller combined.
   const readInput = (): Input => {
     const k = held.current;
     const s = stick.current;
+    const pad = readPad(0);
+    const padMoves = !!pad && (pad.x !== 0 || pad.y !== 0);
     return {
-      x: s ? s.x : (k.has("right") ? 1 : 0) - (k.has("left") ? 1 : 0),
-      y: s ? s.y : (k.has("up") ? 1 : 0) - (k.has("down") ? 1 : 0),
-      fire: k.has("fire"),
-      roll: k.has("roll"),
+      x: padMoves ? pad.x : s ? s.x : (k.has("right") ? 1 : 0) - (k.has("left") ? 1 : 0),
+      y: padMoves ? pad.y : s ? s.y : (k.has("up") ? 1 : 0) - (k.has("down") ? 1 : 0),
+      fire: k.has("fire") || !!pad?.a,
+      roll: k.has("roll") || !!pad?.b,
     };
   };
 
+  const soundOn = useSoundOn();
+  useEffect(() => {
+    engineRef.current?.setMuted(!soundOn);
+  }, [soundOn, phase]);
+
+  useEffect(() => {
+    engineRef.current?.setPaused(paused);
+    if (paused) held.current.clear();
+  }, [paused, phase]);
+
   const finish = useEffectEvent((s: AstroState) =>
-    onFinish({ headline: a.over, detail: a.detail(s.score, s.wave), score: s.score }),
+    onFinish({ headline: a.over, detail: a.detail(s.score, s.wave), score: s.score, stats: { wave: s.wave, score: s.score } }),
   );
 
   const onEvent = useEffectEvent((e: AstroEvent) => {
@@ -123,6 +138,18 @@ export default function AstroStorm({ onFinish }: GameProps) {
     });
   }
   const toggleViewEvent = useEffectEvent(toggleView);
+
+  // Y on a controller switches the view (once per press).
+  useEffect(() => {
+    if (phase !== "playing") return;
+    let wasDown = false;
+    const id = setInterval(() => {
+      const down = !!readPad(0)?.y3;
+      if (down && !wasDown) toggleViewEvent();
+      wasDown = down;
+    }, 100);
+    return () => clearInterval(id);
+  }, [phase]);
 
   // Start the engine (and download Three.js) once the player launches.
   useEffect(() => {
@@ -257,13 +284,13 @@ export default function AstroStorm({ onFinish }: GameProps) {
   };
 
   const choice =
-    "flex min-h-24 cursor-pointer items-center gap-4 rounded-3xl border-4 border-transparent bg-muted p-4 text-left transition-colors duration-(--duration-fast) aria-pressed:border-sun aria-pressed:bg-[#32324a]";
+    "flex min-h-24 cursor-pointer items-center gap-4 rounded-lg border-2 border-transparent bg-muted p-4 text-left transition-colors duration-(--duration-fast) hover:border-white/20 aria-pressed:border-sun aria-pressed:bg-[#32324a]";
 
   if (phase === "setup") {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 rounded-(--radius-card) bg-card p-6 sm:p-8">
         <fieldset>
-          <legend className="mb-3 font-display text-2xl font-semibold">{a.chooseView}</legend>
+          <legend className="mb-3 font-display text-2xl uppercase">{a.chooseView}</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["chase", "cockpit"] as const).map((m) => (
               <button key={m} type="button" aria-pressed={view === m} onClick={() => setView(m)} className={choice}>
@@ -276,7 +303,11 @@ export default function AstroStorm({ onFinish }: GameProps) {
             ))}
           </div>
         </fieldset>
-        <p className="text-muted-foreground">{a.keyboard}</p>
+        <p className="text-muted-foreground">
+          {a.keyboard}
+          <br />
+          {a.controller}
+        </p>
         <Button variant="accent" onClick={launch} className="!min-h-16 self-center !px-10 !text-2xl">
           <Icon name="rocket" className="size-7" />
           {a.launch}
@@ -286,27 +317,27 @@ export default function AstroStorm({ onFinish }: GameProps) {
   }
 
   const control =
-    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-3xl font-display text-lg font-semibold transition-transform duration-(--duration-fast) active:translate-y-1";
+    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-xl font-display text-lg uppercase transition-transform duration-(--duration-fast) active:scale-95";
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-3 flex flex-wrap items-center justify-center gap-2 font-display text-xl font-semibold sm:gap-3">
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-2">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2">
           <Icon name="star" className="size-5 text-sun" />
           <span className="sr-only">{a.score}: </span>
           {hud.score}
         </span>
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-2">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2">
           <Icon name="heart" className="size-5 text-accent" />
           <span className="sr-only">{a.lives}: </span>
           {hud.lives}
         </span>
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-4 py-2">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-4 py-2">
           <Icon name="rocket" className="size-5 text-secondary" />
           {a.wave(hud.wave)}
         </span>
         {hud.triple && (
-          <span className="inline-flex items-center gap-2 rounded-2xl bg-sun px-4 py-2 text-on-sun">
+          <span className="inline-flex items-center gap-2 rounded-lg bg-sun px-4 py-2 text-on-sun">
             <Icon name="zap" className="size-5" />
             {a.triple}
           </span>
@@ -314,7 +345,7 @@ export default function AstroStorm({ onFinish }: GameProps) {
         <button
           type="button"
           onClick={toggleView}
-          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl bg-muted px-4 py-2 text-base hover:bg-[#32324a]"
+          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-muted px-4 py-2 text-base hover:bg-[#32324a]"
         >
           <Icon name="tv" className="size-5 text-sky" />
           {a.switchView}: {view === "chase" ? a.chase : a.cockpit}
@@ -368,7 +399,7 @@ export default function AstroStorm({ onFinish }: GameProps) {
           </button>
           <button
             type="button"
-            className={`${control} bg-accent px-6 text-on-accent shadow-[0_5px_0_0_#9f1239] active:shadow-[0_1px_0_0_#9f1239]`}
+            className={`${control} bg-accent px-6 text-on-accent shadow-[0_0_18px_rgb(244_63_94/0.4)]`}
             data-action="fire"
             {...holdHandlers}
           >
@@ -379,7 +410,11 @@ export default function AstroStorm({ onFinish }: GameProps) {
           </button>
         </div>
       </div>
-      <p className="mt-4 text-center text-muted-foreground">{a.keyboard}</p>
+      <p className="mt-4 text-center text-muted-foreground">
+        {a.keyboard}
+        <br />
+        {a.controller}
+      </p>
     </div>
   );
 }

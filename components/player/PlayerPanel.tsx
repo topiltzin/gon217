@@ -9,8 +9,8 @@ import {
   ADJECTIVES,
   ANIMALS,
   MAX_NICK_NUMBER,
-  credentialsSchema,
   formatNickname,
+  parseCredentials,
   type Adjective,
   type Animal,
 } from "@/lib/player";
@@ -19,7 +19,7 @@ import { usePlayer, type PlayerError } from "./PlayerProvider";
 type GameInfo = { slug: string; title: string; unit: ScoreUnit };
 
 const selectClass =
-  "min-h-12 w-full rounded-2xl border-2 border-border bg-muted px-3 text-lg text-foreground";
+  "min-h-12 w-full rounded-lg border border-white/15 bg-muted px-3 text-lg text-foreground focus:border-secondary";
 
 export function PlayerPanel({ games }: { games: GameInfo[] }) {
   const { state, logOut } = usePlayer();
@@ -31,7 +31,7 @@ export function PlayerPanel({ games }: { games: GameInfo[] }) {
       aria-labelledby="player-heading"
       className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 pb-10 sm:px-6"
     >
-      <h1 id="player-heading" className="text-4xl font-bold sm:text-5xl">
+      <h1 id="player-heading" className="text-4xl uppercase sm:text-5xl">
         {t.player.title}
       </h1>
 
@@ -39,12 +39,12 @@ export function PlayerPanel({ games }: { games: GameInfo[] }) {
       {state.status === "unavailable" && <p className="text-xl">{t.player.errors.unavailable}</p>}
 
       {state.status === "ready" && state.player && (
-        <div className="flex flex-col gap-5 rounded-(--radius-card) bg-card p-6 text-card-foreground">
+        <div className="flex flex-col gap-5 rounded-(--radius-card) border border-white/10 bg-card p-6 text-card-foreground">
           <p className="flex items-center gap-2 font-display text-2xl font-semibold">
             <Icon name="user" className="size-7 text-sun" />
             {t.player.loggedInAs(formatNickname(state.player, locale))}
           </p>
-          <h2 className="text-2xl font-bold">{t.player.myBests}</h2>
+          <h2 className="text-2xl uppercase">{t.player.myBests}</h2>
           {Object.keys(state.bests).length === 0 ? (
             <p>{t.player.noBests}</p>
           ) : (
@@ -54,7 +54,7 @@ export function PlayerPanel({ games }: { games: GameInfo[] }) {
                 .map((g) => (
                   <li
                     key={g.slug}
-                    className="flex justify-between gap-3 rounded-2xl bg-muted px-4 py-3 text-foreground"
+                    className="flex justify-between gap-3 rounded-lg border-l-2 border-secondary bg-muted px-4 py-3 text-foreground"
                   >
                     <span>{g.title}</span>
                     <span className="font-bold">
@@ -96,20 +96,20 @@ function LoginForm() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const parsed = credentialsSchema.safeParse({ adjective, animal, number: Number(number), pin });
-    if (!parsed.success) return setError("invalid");
+    const credentials = parseCredentials({ adjective, animal, number: Number(number), pin });
+    if (!credentials) return setError("invalid");
     setBusy(true);
-    setError(await (mode === "new" ? signUp : logIn)(parsed.data));
+    setError(await (mode === "new" ? signUp : logIn)(credentials));
     setBusy(false);
   }
 
   const tabClass = (active: boolean) =>
-    `min-h-12 flex-1 rounded-2xl px-4 font-display text-lg font-semibold ${
+    `min-h-12 flex-1 rounded-lg px-4 font-display text-base uppercase tracking-wide ${
       active ? "bg-primary text-on-primary" : "bg-muted text-foreground hover:bg-[#32324a]"
     }`;
 
   return (
-    <div className="flex flex-col gap-5 rounded-(--radius-card) bg-card p-6 text-card-foreground">
+    <div className="flex flex-col gap-5 rounded-(--radius-card) border border-white/10 bg-card p-6 text-card-foreground">
       <p className="text-lg">{t.player.optional}</p>
       <div className="flex gap-2">
         {(["new", "existing"] as const).map((m) => (

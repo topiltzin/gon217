@@ -4,7 +4,9 @@ import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
+import { readPad } from "@/games/gamepad";
 import type { GameProps } from "@/games/types";
+import { useSoundOn } from "@/lib/settings";
 import type { Engine, Hud, Mode } from "./engine";
 import { RULES, soloScore, type Difficulty, type GameEvent, type GonzState, type Input } from "./logic";
 import { CHARACTERS, type Character } from "./characters";
@@ -57,7 +59,7 @@ function hasWebgl() {
   }
 }
 
-export default function Gonzgun({ onFinish }: GameProps) {
+export default function Gonzgun({ onFinish, paused }: GameProps) {
   const t = useT();
   const g = t.gonzgun;
   const [phase, setPhase] = useState<Phase>("setup");
@@ -78,14 +80,30 @@ export default function Gonzgun({ onFinish }: GameProps) {
   const names = characters.map((c) => g[c]) as [string, string];
   const tags: [string, string] = mode === "cpu" ? [g.p1, g.cpuTag] : [g.p1, g.p2];
 
+  // Keyboard, touch stick and controllers combined: controller 1 drives player 1, controller 2 player 2.
   const readInput = (): [Input, Input] =>
     [0, 1].map((i) => {
       const keys = held.current[i];
       const s = i === 0 ? stick.current : null;
-      const mx = s ? s.x : (keys.has("right") ? 1 : 0) - (keys.has("left") ? 1 : 0);
-      const mz = s ? s.z : (keys.has("down") ? 1 : 0) - (keys.has("up") ? 1 : 0);
-      return { mx, mz, fire: keys.has("fire"), dash: keys.has("dash") };
+      const pad = mode === "cpu" && i === 1 ? null : readPad(i);
+      let mx = s ? s.x : (keys.has("right") ? 1 : 0) - (keys.has("left") ? 1 : 0);
+      let mz = s ? s.z : (keys.has("down") ? 1 : 0) - (keys.has("up") ? 1 : 0);
+      if (pad && (pad.x || pad.y)) {
+        mx = pad.x;
+        mz = -pad.y;
+      }
+      return { mx, mz, fire: keys.has("fire") || !!pad?.a, dash: keys.has("dash") || !!pad?.b };
     }) as [Input, Input];
+
+  const soundOn = useSoundOn();
+  useEffect(() => {
+    engineRef.current?.setMuted(!soundOn);
+  }, [soundOn, phase]);
+
+  useEffect(() => {
+    engineRef.current?.setPaused(paused);
+    if (paused) held.current.forEach((set) => set.clear());
+  }, [paused, phase]);
 
   const finish = useEffectEvent((s: GonzState) => {
     const [a, b] = [s.fighters[0].kos, s.fighters[1].kos];
@@ -94,10 +112,20 @@ export default function Gonzgun({ onFinish }: GameProps) {
         headline: s.winner === 0 ? g.winYou : g.winCpu,
         detail: `${g.detail(a, b)} ${g.level(g[difficulty])}`,
         score: soloScore(s, difficulty),
+        stats: {
+          beatCpu: s.winner === 0,
+          won: s.winner === 0,
+          kosTaken: b,
+          difficulty: ["easy", "normal", "hard"].indexOf(difficulty),
+        },
       });
     } else {
       const winner = s.winner ?? 0;
-      onFinish({ headline: g.winPlayer(`${names[winner]} (${tags[winner]})`), detail: g.detail(a, b) });
+      onFinish({
+        headline: g.winPlayer(`${names[winner]} (${tags[winner]})`),
+        detail: g.detail(a, b),
+        stats: { won: true, kosTaken: winner === 0 ? b : a },
+      });
     }
   });
 
@@ -246,15 +274,15 @@ export default function Gonzgun({ onFinish }: GameProps) {
   };
 
   const choice =
-    "flex min-h-24 cursor-pointer items-center gap-4 rounded-3xl border-4 bg-muted p-4 text-left transition-colors duration-(--duration-fast) aria-pressed:border-sun aria-pressed:bg-[#32324a] border-transparent";
+    "flex min-h-24 cursor-pointer items-center gap-4 rounded-lg border-2 border-transparent bg-muted p-4 text-left transition-colors duration-(--duration-fast) hover:border-white/20 aria-pressed:border-sun aria-pressed:bg-[#32324a]";
 
   const fighterPicker = (legend: string, value: Character, onPick: (c: Character) => void) => (
     <fieldset>
-      <legend className="mb-3 font-display text-2xl font-semibold">{legend}</legend>
+      <legend className="mb-3 font-display text-2xl uppercase">{legend}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
         {CHARACTERS.map((c) => (
           <button key={c} type="button" aria-pressed={value === c} onClick={() => onPick(c)} className={choice}>
-            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-background">
+            <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-background">
               <Portrait kind={c} className="size-14" />
             </span>
             <span>
@@ -271,7 +299,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col gap-6 rounded-(--radius-card) bg-card p-6 sm:p-8">
         <fieldset>
-          <legend className="mb-3 font-display text-2xl font-semibold">{g.chooseMode}</legend>
+          <legend className="mb-3 font-display text-2xl uppercase">{g.chooseMode}</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {(["cpu", "duo"] as const).map((m) => (
               <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={choice}>
@@ -286,7 +314,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
         </fieldset>
         {mode === "cpu" && (
           <fieldset>
-            <legend className="mb-3 font-display text-2xl font-semibold">{g.difficulty}</legend>
+            <legend className="mb-3 font-display text-2xl uppercase">{g.difficulty}</legend>
             <div className="grid grid-cols-3 gap-3">
               {(["easy", "normal", "hard"] as const).map((d, i) => (
                 <button
@@ -319,6 +347,8 @@ export default function Gonzgun({ onFinish }: GameProps) {
               {g.keysP2}
             </>
           )}
+          <br />
+          {g.controller}
         </p>
         <Button variant="accent" onClick={start} className="!min-h-16 self-center !px-10 !text-2xl">
           <Icon name="zap" className="size-7" />
@@ -329,7 +359,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
   }
 
   const control =
-    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-3xl font-display text-lg font-semibold transition-transform duration-(--duration-fast) active:translate-y-1";
+    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-xl font-display text-lg uppercase transition-transform duration-(--duration-fast) active:scale-95";
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -337,7 +367,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
         {([0, 1] as const).map((i) => (
           <div
             key={i}
-            className={`flex items-center gap-2 rounded-2xl bg-card p-2 sm:gap-3 sm:p-3 ${i === 1 ? "order-3 flex-row-reverse text-right" : ""}`}
+            className={`flex items-center gap-2 rounded-lg border border-white/10 bg-card p-2 sm:gap-3 sm:p-3 ${i === 1 ? "order-3 flex-row-reverse text-right" : ""}`}
           >
             <span className={`grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border-4 bg-background ${i === 0 ? "border-sun" : "border-sky"}`}>
               <Portrait kind={characters[i]} className="size-9" />
@@ -430,7 +460,7 @@ export default function Gonzgun({ onFinish }: GameProps) {
             </button>
             <button
               type="button"
-              className={`${control} bg-accent px-6 text-on-accent shadow-[0_5px_0_0_#9f1239] active:shadow-[0_1px_0_0_#9f1239]`}
+              className={`${control} bg-accent px-6 text-on-accent shadow-[0_0_18px_rgb(244_63_94/0.4)]`}
               data-action="fire"
               {...holdHandlers}
             >
@@ -452,6 +482,8 @@ export default function Gonzgun({ onFinish }: GameProps) {
             {g.keysP2}
           </>
         )}
+        <br />
+        {g.controller}
       </p>
     </div>
   );

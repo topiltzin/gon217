@@ -16,7 +16,7 @@ export class GonzAudio {
       if (!Ctor) return;
       this.ctx = new Ctor();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.55;
+      this.master.gain.value = this.muted ? 0 : 0.55;
       this.master.connect(this.ctx.destination);
       const len = this.ctx.sampleRate;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -26,7 +26,10 @@ export class GonzAudio {
     if (this.ctx.state === "suspended") void this.ctx.resume();
   }
 
+  private muted = false;
+
   setMuted(muted: boolean) {
+    this.muted = muted;
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(muted ? 0 : 0.55, this.ctx.currentTime, 0.02);
   }
 

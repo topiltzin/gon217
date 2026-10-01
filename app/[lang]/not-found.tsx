@@ -10,10 +10,10 @@ export default function NotFound() {
   const locale = useLocale();
   return (
     <section className="mx-auto flex max-w-lg flex-col items-center gap-5 px-4 py-16 text-center">
-      <span className="grid size-28 rotate-6 place-items-center rounded-[2rem] bg-sky text-on-sky shadow-[0_8px_0_0_#0369a1]">
-        <Icon name="rocket" className="size-16" />
-      </span>
-      <h1 className="text-5xl font-bold">{t.notFound.title}</h1>
+      <p aria-hidden="true" className="font-display text-8xl text-transparent [-webkit-text-stroke:2px_var(--color-secondary)] sm:text-9xl">
+        404
+      </p>
+      <h1 className="text-4xl uppercase sm:text-5xl">{t.notFound.title}</h1>
       <p className="text-xl text-muted-foreground">{t.notFound.body}</p>
       <ButtonLink href={`/${locale}`} variant="accent">
         <Icon name="home" />

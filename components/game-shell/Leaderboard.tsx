@@ -36,9 +36,9 @@ export function Leaderboard({ slug, unit }: { slug: string; unit: string }) {
   return (
     <section
       aria-labelledby={`${slug}-leaders`}
-      className="mx-auto mt-6 w-full max-w-md rounded-(--radius-card) bg-card p-6 text-card-foreground"
+      className="mx-auto mt-6 w-full max-w-lg rounded-(--radius-card) border border-white/10 bg-card p-6 text-card-foreground"
     >
-      <h2 id={`${slug}-leaders`} className="mb-3 flex items-center gap-2 text-2xl font-bold">
+      <h2 id={`${slug}-leaders`} className="mb-3 flex items-center gap-2 text-2xl uppercase">
         <Icon name="crown" className="size-6 text-sun" />
         {t.player.leaderboard}
       </h2>
@@ -49,11 +49,13 @@ export function Leaderboard({ slug, unit }: { slug: string; unit: string }) {
           {entries.map((e, i) => (
             <li
               key={`${e.adjective}-${e.animal}-${e.number}`}
-              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 ${isMe(e) ? "bg-muted font-bold text-foreground" : ""}`}
+              className={`flex items-center justify-between gap-3 rounded-md border-l-2 px-3 py-2 ${
+                isMe(e) ? "border-sun bg-muted font-bold text-foreground" : i < 3 ? "border-secondary/60 bg-background/40" : "border-transparent"
+              }`}
             >
               <span>
-                <span className="mr-2 inline-block w-6 text-right text-muted-foreground">
-                  {i + 1}.
+                <span className={`mr-2 inline-block w-6 text-right font-display ${i < 3 ? "text-sun" : "text-muted-foreground"}`}>
+                  {i + 1}
                 </span>
                 {formatNickname(e, locale)}
                 {isMe(e) && ` (${t.player.you})`}

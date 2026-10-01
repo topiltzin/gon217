@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { credentialsSchema } from "@/lib/player";
+import { credentialsSchema } from "@/lib/player-schemas";
 import { hashPin, isSameOrigin, startSession } from "@/lib/server/auth";
 import { accountsUnavailable, getSql } from "@/lib/server/db";
 

@@ -14,6 +14,7 @@ export const gameRegistry: Record<string, GameEntry> = {
   "catch-it": {
     load: () => import("./catch-it/CatchIt"),
     scoring: gameScoring["catch-it"],
+    pausable: true,
   },
   "tic-tac-toe": {
     load: () => import("./tic-tac-toe/TicTacToe"),
@@ -21,17 +22,21 @@ export const gameRegistry: Record<string, GameEntry> = {
   "super-jump": {
     load: () => import("./super-jump/SuperJump"),
     scoring: gameScoring["super-jump"],
+    pausable: true,
   },
   "garden-guard": {
     load: () => import("./garden-guard/GardenGuard"),
     scoring: gameScoring["garden-guard"],
+    pausable: true,
   },
   gonzgun: {
     load: () => import("./gonzgun/Gonzgun"),
     scoring: gameScoring.gonzgun,
+    pausable: true,
   },
   "astro-storm": {
     load: () => import("./astro-storm/AstroStorm"),
     scoring: gameScoring["astro-storm"],
+    pausable: true,
   },
 };

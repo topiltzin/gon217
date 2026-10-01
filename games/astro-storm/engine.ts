@@ -29,6 +29,7 @@ export class Engine {
   private overFor = 0;
   private reported = false;
   private lastHud = "";
+  private paused = false;
 
   constructor(
     private readonly container: HTMLElement,
@@ -63,6 +64,17 @@ export class Engine {
     this.view.mode = mode;
   }
 
+  setMuted(muted: boolean) {
+    this.audio.setMuted(muted);
+  }
+
+  /** Freezes the game (it keeps drawing the last frame). */
+  setPaused(paused: boolean) {
+    this.paused = paused;
+    this.last = performance.now();
+    this.acc = 0;
+  }
+
   private resize() {
     const w = Math.max(1, this.container.clientWidth);
     const h = Math.max(1, this.container.clientHeight);
@@ -75,7 +87,7 @@ export class Engine {
     const now = performance.now();
     const elapsed = Math.min(Math.max((now - this.last) / 1000, 0), MAX_FRAME);
     this.last = now;
-    this.acc += elapsed;
+    if (!this.paused) this.acc += elapsed;
     while (this.acc >= STEP) {
       step(this.state, this.readInput(), STEP, Math.random);
       if (this.state.events.length) {
@@ -88,14 +100,14 @@ export class Engine {
       this.acc -= STEP;
     }
     this.emitHud();
-    if (this.state.status === "over" && !this.reported) {
+    if (this.state.status === "over" && !this.reported && !this.paused) {
       this.overFor += elapsed;
       if (this.overFor >= OVER_DELAY) {
         this.reported = true;
         this.events.onOver(this.state);
       }
     }
-    this.view.draw(this.state, elapsed);
+    this.view.draw(this.state, this.paused ? 0 : elapsed);
     this.renderer.render(this.view.scene, this.view.camera);
   };
 

@@ -56,6 +56,7 @@ export class Engine {
   private acc = 0;
   private overFor = 0;
   private freeze = 0;
+  private paused = false;
   private countedIn = false;
   private slowMo = 0;
   private reported = false;
@@ -102,6 +103,14 @@ export class Engine {
     this.audio.setMuted(muted);
   }
 
+  /** Freezes the game (it keeps drawing the last frame). */
+  setPaused(paused: boolean) {
+    this.paused = paused;
+    this.last = performance.now();
+    this.acc = 0;
+  }
+
+
   private resize() {
     const w = Math.max(1, this.container.clientWidth);
     const h = Math.max(1, this.container.clientHeight);
@@ -115,7 +124,9 @@ export class Engine {
     const elapsed = Math.min(Math.max((now - this.last) / 1000, 0), MAX_FRAME);
     this.last = now;
     let simTime = elapsed;
-    if (this.freeze > 0) {
+    if (this.paused) {
+      simTime = 0;
+    } else if (this.freeze > 0) {
       simTime = 0;
       this.freeze -= elapsed;
     } else if (this.slowMo > 0) {
@@ -127,14 +138,14 @@ export class Engine {
       this.tick();
       this.acc -= STEP;
     }
-    if (this.state.status === "over" && !this.reported) {
+    if (this.state.status === "over" && !this.reported && !this.paused) {
       this.overFor += elapsed;
       if (this.overFor >= OVER_DELAY) {
         this.reported = true;
         this.events.onOver(this.state);
       }
     }
-    this.view.draw(this.state, simTime > 0 ? simTime : elapsed * 0.05);
+    this.view.draw(this.state, this.paused ? 0 : simTime > 0 ? simTime : elapsed * 0.05);
     this.renderer.render(this.view.scene, this.view.camera);
   };
 

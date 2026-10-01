@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { gameScoring } from "@/games/scoring";
-import { scoreSubmissionSchema } from "@/lib/player";
+import { scoreSubmissionSchema } from "@/lib/player-schemas";
 import { getSessionPlayer, isSameOrigin } from "@/lib/server/auth";
 import { accountsUnavailable, getSql } from "@/lib/server/db";
 

@@ -21,6 +21,7 @@ import {
   LogOut,
   Megaphone,
   Palette,
+  Pause,
   Play,
   Puzzle,
   Rocket,
@@ -33,6 +34,8 @@ import {
   Trophy,
   UserRound,
   Tv,
+  Volume2,
+  VolumeX,
   X,
   Zap,
   type LucideIcon,
@@ -76,6 +79,9 @@ const icons: Record<IconName | UiIconName, LucideIcon> = {
   snail: Snail,
   user: UserRound,
   "log-out": LogOut,
+  pause: Pause,
+  volume: Volume2,
+  "volume-off": VolumeX,
 };
 
 type UiIconName =
@@ -101,7 +107,10 @@ type UiIconName =
   | "sun"
   | "snail"
   | "user"
-  | "log-out";
+  | "log-out"
+  | "pause"
+  | "volume"
+  | "volume-off";
 
 type Props = {
   name: IconName | UiIconName;

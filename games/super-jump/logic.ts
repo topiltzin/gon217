@@ -7,6 +7,8 @@
  *
  * Jumping into a brick from below smashes it (and squashes any slime on top);
  * a question block gives a coin once, then stays as a plain used block.
+ * Moving platforms (defined beside the rows) slide back and forth or up and
+ * down; you can stand on them from above and jump up through them.
  */
 
 export const TILE = 16;
@@ -29,9 +31,16 @@ const ENEMY_H = 12;
 
 export type Point = { x: number; y: number };
 
+/** A moving platform, in tiles: it starts at (x, y), is `width` tiles wide, and travels `range` tiles along `axis` (y: upward). */
+export type PlatformSpec = { x: number; y: number; width: number; axis: "x" | "y"; range: number; speed: number };
+
+export type Theme = "day" | "sunset" | "night";
+
 export type Level = {
   width: number;
   height: number;
+  platforms: PlatformSpec[];
+  theme: Theme;
   /** solid[y][x] */
   solid: boolean[][];
   bricks: Point[];
@@ -50,6 +59,9 @@ type Body = { x: number; y: number; w: number; h: number; vx: number; vy: number
 export type Player = Body & { facing: 1 | -1 };
 export type Enemy = Body & { alive: boolean };
 export type Coin = Point & { taken: boolean };
+/** A platform in pixels; `offset` runs from 0 to `range` and back. `dx`/`dy` are this step's movement. */
+export type Platform = PlatformSpec & { px: number; py: number; w: number; offset: number; dir: 1 | -1; dx: number; dy: number };
+export const PLATFORM_H = 6;
 /** Something that just happened to a block, for the drawing to animate. `at` is the game time. */
 export type BlockEffect = Point & { kind: "smash" | "coin"; at: number };
 
@@ -70,16 +82,21 @@ export type JumpState = {
   usedBlocks: string[];
   effects: BlockEffect[];
   bricksSmashed: number;
+  platforms: Platform[];
+  /** Index of the platform the player is standing on, if any. */
+  riding: number | null;
   status: "playing" | "won" | "lost";
   time: number;
 };
 
-export function parseLevel(rows: string[]): Level {
+export function parseLevel(rows: string[], platforms: PlatformSpec[] = [], theme: Theme = "day"): Level {
   const width = rows[0]?.length ?? 0;
   if (rows.some((r) => r.length !== width)) throw new Error("Level rows must all be the same length");
   const level: Level = {
     width,
     height: rows.length,
+    platforms,
+    theme,
     solid: rows.map((r) => [...r].map((c) => c === "#" || c === "B" || c === "Q")),
     bricks: [],
     questions: [],
@@ -113,7 +130,12 @@ function freshPlayer(tile: Point): Player {
   return { ...spawnAt(tile), w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, facing: 1 };
 }
 
-export function createGame(level: Level): JumpState {
+function makePlatform(spec: PlatformSpec): Platform {
+  return { ...spec, px: spec.x * TILE, py: spec.y * TILE, w: spec.width * TILE, offset: 0, dir: 1, dx: 0, dy: 0 };
+}
+
+/** Starts a level. `carry` keeps coins, lives and smashed bricks from earlier levels. */
+export function createGame(level: Level, carry?: { coins: number; lives: number; bricks: number }): JumpState {
   return {
     level,
     player: freshPlayer(level.start),
@@ -128,17 +150,39 @@ export function createGame(level: Level): JumpState {
       alive: true,
     })),
     coins: level.coins.map((c) => ({ ...c, taken: false })),
-    coinsCollected: 0,
-    lives: START_LIVES,
+    coinsCollected: carry?.coins ?? 0,
+    lives: carry?.lives ?? START_LIVES,
     invulnerable: 0,
     checkpointReached: false,
     jumpHeld: false,
     usedBlocks: [],
     effects: [],
-    bricksSmashed: 0,
+    bricksSmashed: carry?.bricks ?? 0,
+    platforms: level.platforms.map(makePlatform),
+    riding: null,
     status: "playing",
     time: 0,
   };
+}
+
+/** Slides each platform along its track, ping-ponging at the ends. */
+function movePlatforms(platforms: Platform[], dt: number): Platform[] {
+  return platforms.map((pl) => {
+    const range = pl.range * TILE;
+    let offset = pl.offset + pl.dir * pl.speed * dt;
+    let dir = pl.dir;
+    if (offset >= range) {
+      offset = range;
+      dir = -1;
+    } else if (offset <= 0) {
+      offset = 0;
+      dir = 1;
+    }
+    const delta = offset - pl.offset;
+    const dx = pl.axis === "x" ? delta : 0;
+    const dy = pl.axis === "y" ? -delta : 0;
+    return { ...pl, offset, dir, dx, dy, px: pl.px + dx, py: pl.py + dy };
+  });
 }
 
 /** Out of bounds: the sides are walls, above and below are open (so pits are deadly). */
@@ -192,7 +236,7 @@ function loseLife(s: JumpState): JumpState {
   const lives = s.lives - 1;
   if (lives <= 0) return { ...s, lives: 0, status: "lost" };
   const respawn = s.checkpointReached && s.level.checkpoint ? s.level.checkpoint : s.level.start;
-  return { ...s, lives, player: freshPlayer(respawn), invulnerable: INVULNERABLE_S };
+  return { ...s, lives, player: freshPlayer(respawn), riding: null, invulnerable: INVULNERABLE_S };
 }
 
 function approach(value: number, target: number, amount: number): number {
@@ -244,6 +288,14 @@ export function step(state: JumpState, input: Input, dt: number): JumpState {
   if (state.status !== "playing") return state;
   const { level } = state;
   const p: Player = { ...state.player };
+  const platforms = movePlatforms(state.platforms, dt);
+
+  // Ride along with the platform underfoot (walls still stop you).
+  if (state.riding !== null) {
+    const pl = platforms[state.riding];
+    moveAxis(level, p, "x", pl.dx);
+    p.y = pl.py - p.h;
+  }
 
   // Run.
   const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
@@ -259,6 +311,21 @@ export function step(state: JumpState, input: Input, dt: number): JumpState {
   const rising = p.vy < 0;
   moveBody(level, p, dt);
   const bumped = rising && p.vy === 0 ? ceilingTile(level, p) : null;
+
+  // Land on a platform from above; from below you jump straight through.
+  let riding: number | null = null;
+  if (p.vy >= 0) {
+    platforms.forEach((pl, i) => {
+      if (riding !== null) return;
+      const overX = p.x + p.w > pl.px + 1 && p.x < pl.px + pl.w - 1;
+      if (overX && prevBottom <= pl.py + 1 && p.y + p.h >= pl.py) {
+        p.y = pl.py - p.h;
+        p.vy = 0;
+        p.onGround = true;
+        riding = i;
+      }
+    });
+  }
 
   // Slimes patrol, turning at walls and ledges.
   const enemies = state.enemies.map((e) => {
@@ -278,6 +345,8 @@ export function step(state: JumpState, input: Input, dt: number): JumpState {
     player: p,
     enemies,
     jumpHeld: input.jump,
+    platforms,
+    riding,
     time: state.time + dt,
     invulnerable: Math.max(0, state.invulnerable - dt),
     effects: state.effects.filter((e) => state.time - e.at < EFFECT_S),
@@ -397,3 +466,149 @@ function buildLevel1(): string[] {
 }
 
 export const LEVEL_1 = buildLevel1();
+
+/** A blank W×12 map with ground (rows 10–11) except in the pits, plus drawing helpers. */
+function blank(W: number, pits: [number, number][]) {
+  const H = 12;
+  const g = Array.from({ length: H }, () => Array<string>(W).fill("."));
+  for (let x = 0; x < W; x++) {
+    if (pits.some(([a, b]) => x >= a && x <= b)) continue;
+    g[10][x] = "#";
+    g[11][x] = "#";
+  }
+  const put = (x: number, y: number, c: string) => {
+    g[y][x] = c;
+  };
+  const row = (x0: number, x1: number, y: number, c: string) => {
+    for (let x = x0; x <= x1; x++) put(x, y, c);
+  };
+  const stairs = (x0: number, steps: number, down = false) => {
+    for (let i = 0; i < steps; i++) {
+      const h = down ? steps - i : i + 1;
+      for (let y = 10 - h; y <= 9; y++) put(x0 + i, y, "B");
+    }
+  };
+  return { put, row, stairs, rows: () => g.map((r) => r.join("")) };
+}
+
+/** A platform that shuttles across a pit at ground height, touching both edges. */
+const ferry = (pitStart: number, pitEnd: number, speed = 34, width = 3): PlatformSpec => ({
+  x: pitStart - 1,
+  y: 10,
+  width,
+  axis: "x",
+  range: pitEnd - pitStart + 3 - width,
+  speed,
+});
+
+/** Level 2, "Sky Bridges": wide gaps you cross on moving platforms. */
+function buildLevel2() {
+  const pits: [number, number][] = [
+    [14, 19],
+    [34, 36],
+    [44, 53],
+    [70, 76],
+    [86, 88],
+    [100, 105],
+  ];
+  const m = blank(124, pits);
+  m.put(2, 9, "P");
+  m.row(6, 9, 9, "o");
+  m.put(11, 9, "e");
+  m.row(15, 18, 7, "o");
+  m.row(23, 27, 6, "B");
+  m.put(25, 6, "Q");
+  m.row(23, 27, 5, "o");
+  m.put(29, 9, "e");
+  m.put(35, 7, "o");
+  m.row(38, 41, 6, "B");
+  m.put(39, 6, "Q");
+  m.row(46, 51, 6, "o");
+  m.put(58, 9, "C");
+  m.stairs(61, 3);
+  m.put(66, 9, "e");
+  m.row(71, 75, 6, "o");
+  m.row(79, 83, 6, "B");
+  m.put(81, 6, "Q");
+  m.put(82, 9, "e");
+  m.put(87, 7, "o");
+  m.put(92, 9, "e");
+  m.put(95, 9, "e");
+  m.row(101, 104, 6, "o");
+  m.stairs(108, 4);
+  m.row(109, 111, 4, "o");
+  m.put(118, 9, "F");
+  const platforms: PlatformSpec[] = [
+    ferry(14, 19),
+    // Two ferries over the big gap: hop from one to the other in the middle.
+    { x: 43, y: 10, width: 3, axis: "x", range: 4, speed: 30 },
+    { x: 49, y: 10, width: 3, axis: "x", range: 3, speed: 38 },
+    ferry(70, 76, 40),
+    ferry(100, 105, 44),
+  ];
+  return { rows: m.rows(), platforms };
+}
+
+/** Level 3, "Night Castle": tall walls you ride lifts up, quick slimes, and the longest gaps. */
+function buildLevel3() {
+  const pits: [number, number][] = [
+    [20, 26],
+    [50, 52],
+    [64, 72],
+    [92, 98],
+  ];
+  const m = blank(132, pits);
+  const wall = (x0: number, x1: number, top: number) => {
+    for (let x = x0; x <= x1; x++) for (let y = top; y <= 9; y++) m.put(x, y, "B");
+  };
+  m.put(2, 9, "P");
+  m.row(5, 8, 9, "o");
+  m.row(9, 12, 6, "B");
+  m.put(10, 6, "Q");
+  m.put(11, 6, "Q");
+  m.put(14, 9, "e");
+  m.row(21, 25, 7, "o");
+  // Castle wall #1, taller than any jump: ride the lift up.
+  wall(33, 35, 4);
+  m.row(33, 35, 3, "o");
+  m.put(41, 9, "e");
+  m.put(44, 9, "e");
+  m.put(51, 7, "o");
+  m.put(56, 9, "C");
+  m.row(58, 61, 6, "B");
+  m.put(59, 6, "Q");
+  m.row(65, 71, 6, "o");
+  m.put(76, 9, "e");
+  m.put(78, 9, "e");
+  m.put(80, 9, "e");
+  // Castle wall #2.
+  wall(85, 87, 3);
+  m.row(85, 87, 2, "o");
+  m.row(93, 97, 6, "o");
+  m.row(102, 106, 6, "B");
+  m.put(104, 6, "Q");
+  m.put(108, 9, "e");
+  m.stairs(112, 4);
+  m.stairs(116, 4, true);
+  m.put(126, 9, "F");
+  const platforms: PlatformSpec[] = [
+    ferry(20, 26, 40),
+    { x: 29, y: 10, width: 3, axis: "y", range: 5, speed: 30 },
+    ferry(64, 72, 46, 3),
+    { x: 81, y: 10, width: 3, axis: "y", range: 6, speed: 32 },
+    ferry(92, 98, 50),
+  ];
+  return { rows: m.rows(), platforms };
+}
+
+const LEVEL_2 = buildLevel2();
+const LEVEL_3 = buildLevel3();
+
+/** Every level in order, ready to play. */
+export function allLevels(): Level[] {
+  return [
+    parseLevel(LEVEL_1, [], "day"),
+    parseLevel(LEVEL_2.rows, LEVEL_2.platforms, "sunset"),
+    parseLevel(LEVEL_3.rows, LEVEL_3.platforms, "night"),
+  ];
+}

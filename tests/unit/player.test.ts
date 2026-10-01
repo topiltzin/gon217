@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { gameScoring, isBetter } from "@/games/scoring";
 import { gameRegistry } from "@/games/registry";
-import { ADJECTIVES, ANIMALS, credentialsSchema, formatNickname, scoreSubmissionSchema } from "@/lib/player";
+import { ADJECTIVES, ANIMALS, formatNickname, parseCredentials } from "@/lib/player";
+import { credentialsSchema, scoreSubmissionSchema } from "@/lib/player-schemas";
 import { hashPin, verifyPin } from "@/lib/server/auth";
 
 describe("player names", () => {
@@ -61,6 +62,29 @@ describe("scores", () => {
 
   it("the registry and the server agree on which games are scored", () => {
     const scored = Object.entries(gameRegistry).filter(([, e]) => e.scoring).map(([slug]) => slug);
-    expect(scored.sort()).toEqual(Object.keys(gameScoring).sort());
+    // Extra scoring slugs are per-variant leaderboards of a scored game, like "memory-match-30".
+    const base = (slug: string) => scored.find((g) => slug === g || slug.startsWith(`${g}-`));
+    expect(Object.keys(gameScoring).every((slug) => base(slug))).toBe(true);
+    for (const slug of scored) expect(gameScoring[slug]).toBeDefined();
+  });
+});
+
+describe("parseCredentials (client form check)", () => {
+  it("accepts what the server schema accepts and rejects the rest", () => {
+    const ok = { adjective: "brave", animal: "tiger", number: 7, pin: "1234" };
+    expect(parseCredentials(ok)).toEqual(ok);
+    expect(credentialsSchema.safeParse(ok).success).toBe(true);
+    for (const bad of [
+      { ...ok, adjective: "evil" },
+      { ...ok, animal: "toString" },
+      { ...ok, number: 0 },
+      { ...ok, number: 100 },
+      { ...ok, number: 1.5 },
+      { ...ok, pin: "12a4" },
+      { ...ok, pin: "12345" },
+    ]) {
+      expect(parseCredentials(bad)).toBeNull();
+      expect(credentialsSchema.safeParse(bad).success).toBe(false);
+    }
   });
 });

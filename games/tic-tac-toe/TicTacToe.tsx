@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { useT } from "@/components/I18nProvider";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
+import { playSfx } from "@/lib/sfx";
 import { type Board, type Player, computerMove, emptyBoard, getOutcome, play } from "./logic";
 
 type Mode = "computer" | "friends";
@@ -29,6 +30,12 @@ export default function TicTacToe({ onFinish }: GameProps) {
   const outcome = getOutcome(board);
   const turn: Player = board.filter(Boolean).length % 2 === 0 ? "X" : "O";
   const computerTurn = mode === "computer" && turn === "O" && !outcome;
+  const marks = board.filter(Boolean).length;
+
+  // A click for every mark placed.
+  useEffect(() => {
+    if (marks > 0) playSfx("place");
+  }, [marks]);
 
   useEffect(() => {
     if (mode) firstCell.current?.focus();
@@ -56,7 +63,10 @@ export default function TicTacToe({ onFinish }: GameProps) {
             ? { headline: t.ttt.youWon, detail: t.ttt.youWonDetail }
             : { headline: t.ttt.computerWon, detail: t.ttt.computerWonDetail }
           : { headline: t.ttt.wins(outcome.player), detail: t.ttt.winsDetail };
-    onFinish(result);
+    const beatCpu = mode === "computer" && outcome.kind === "win" && outcome.player === "X";
+    const lostToCpu = mode === "computer" && outcome.kind === "win" && outcome.player === "O";
+    playSfx(lostToCpu ? "lose" : "win");
+    onFinish({ ...result, stats: { beatCpu } });
   });
 
   useEffect(() => {
@@ -67,8 +77,8 @@ export default function TicTacToe({ onFinish }: GameProps) {
 
   if (!mode) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-(--radius-card) bg-card p-8 text-center">
-        <h2 className="text-3xl font-bold">{t.ttt.who}</h2>
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-(--radius-card) border border-white/10 bg-card p-8 text-center">
+        <h2 className="text-3xl uppercase">{t.ttt.who}</h2>
         <div className="flex flex-wrap justify-center gap-3">
           <Button onClick={() => setMode("computer")}>{t.ttt.computer}</Button>
           <Button variant="ghost" onClick={() => setMode("friends")}>
@@ -93,7 +103,7 @@ export default function TicTacToe({ onFinish }: GameProps) {
 
   return (
     <div className="mx-auto max-w-sm">
-      <p role="status" className="mb-4 text-center font-display text-2xl font-semibold">
+      <p role="status" className="mb-4 text-center font-display text-2xl uppercase">
         {status}
       </p>
       <div className="grid grid-cols-3 gap-3">
@@ -109,9 +119,9 @@ export default function TicTacToe({ onFinish }: GameProps) {
               aria-label={t.ttt.cell(row, col, cell)}
               aria-disabled={disabled}
               onClick={() => !disabled && setBoard((b) => play(b, i, turn))}
-              className={`grid aspect-square place-items-center rounded-3xl transition-colors duration-(--duration-base) ${
-                winLine.includes(i) ? "bg-sun" : "bg-card"
-              } ${disabled ? "cursor-default" : "cursor-pointer hover:bg-muted"}`}
+              className={`grid aspect-square place-items-center rounded-xl border transition-colors duration-(--duration-base) ${
+                winLine.includes(i) ? "border-sun bg-sun shadow-[0_0_24px_rgb(250_204_21/0.45)]" : "border-white/10 bg-card"
+              } ${disabled ? "cursor-default" : "cursor-pointer hover:border-secondary/60 hover:bg-muted"}`}
             >
               {cell && (
                 <span className="grid size-full animate-pop place-items-center">

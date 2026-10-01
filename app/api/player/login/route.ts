@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { credentialsSchema } from "@/lib/player";
+import { credentialsSchema } from "@/lib/player-schemas";
 import {
   LOCK_MINUTES,
   MAX_FAILED_ATTEMPTS,

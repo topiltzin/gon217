@@ -73,10 +73,65 @@ test.describe("Memory Match", () => {
     const touch = testInfo.project.name === "mobile";
     await page.goto("/games/memory-match");
     await startWithKeyboard(page);
+    // The Classic board (20 cards) is picked by default.
+    await expect(page.getByRole("button", { name: /20/ })).toHaveAttribute("aria-pressed", "true");
+    await press(page.getByRole("button", { name: "Start" }), touch);
     await solve(page, touch);
     await expect(page.getByText(/It took you \d+ moves/)).toBeVisible();
     await expect(page.getByText(/your best: \d+ moves/i)).toBeVisible();
     await expectResultThenReplayAndLeave(page, /you found them all/i);
+  });
+});
+
+test.describe("Memory Match sizes", () => {
+  test("the Quick board has 12 cards and a running clock", async ({ page }) => {
+    await page.goto("/en/games/memory-match");
+    await startWithKeyboard(page);
+    await page.getByRole("button", { name: /12/ }).click();
+    await page.getByRole("button", { name: "Start" }).click();
+    await expect(page.getByRole("button", { name: /^Card \d+/ })).toHaveCount(12);
+    await expect(page.getByText("Pairs: 0/6")).toBeVisible();
+    await page.getByRole("button", { name: /^Card 1,/ }).click();
+    await expect(page.getByText(/0:0[1-9]/)).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("Game shell extras", () => {
+  test("Esc pauses a real-time game and freezes its clock", async ({ page }) => {
+    await frozenClock(page);
+    await page.goto("/en/games/catch-it");
+    await startWithKeyboard(page);
+    await page.clock.runFor(2_000);
+    await page.keyboard.press("Escape");
+    const dialog = page.getByRole("dialog", { name: "Paused" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Resume" })).toBeFocused();
+    const clock = page.locator("span", { hasText: /seconds left/ }).first();
+    const before = await clock.textContent();
+    expect(before).toMatch(/^\d+ seconds left/);
+    await page.clock.runFor(5_000);
+    expect(await clock.textContent()).toBe(before);
+    await dialog.getByRole("button", { name: "Resume" }).click();
+    await expect(dialog).toBeHidden();
+    await page.clock.runFor(3_000);
+    expect(await clock.textContent()).not.toBe(before);
+  });
+
+  test("the sound switch is remembered", async ({ page }) => {
+    await page.goto("/en/games/super-jump");
+    const sound = page.getByRole("button", { name: "Sound" });
+    await expect(sound).toHaveAttribute("aria-pressed", "true");
+    await sound.click();
+    await expect(sound).toHaveAttribute("aria-pressed", "false");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Sound" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("the intro lists the game's achievements", async ({ page }) => {
+    await page.goto("/en/games/catch-it");
+    await expect(page.getByRole("heading", { name: "Achievements (0/2)" })).toBeVisible();
+    await expect(page.getByText("Quick hands")).toBeVisible();
+    await expect(page.getByText("Catch 25 stars.")).toBeVisible();
   });
 });
 

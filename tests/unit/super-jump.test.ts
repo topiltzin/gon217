@@ -5,6 +5,7 @@ import {
   LEVEL_1,
   START_LIVES,
   TILE,
+  allLevels,
   createGame,
   parseLevel,
   step,
@@ -227,3 +228,69 @@ describe("bricks and question blocks", () => {
   });
 });
 
+
+describe("moving platforms and levels", () => {
+  const right: Input = { left: false, right: true, jump: false };
+  // A pit from column 3 to 8, with a ferry starting at its left edge.
+  const PIT = ["..............F", "...............", ".P.............", "###......######"];
+  const ferry = { x: 2, y: 3, width: 3, axis: "x" as const, range: 6, speed: 30 };
+
+  it("carries a rider across a pit", () => {
+    let s = run(createGame(parseLevel(PIT, [ferry])), idle, 0.3);
+    // Step onto the ferry, then stand still on it.
+    s = runUntil(s, right, (st) => st.riding === 0 && st.player.x > 2.2 * TILE, 2);
+    s = run(s, idle, 0.3);
+    expect(s.riding).toBe(0);
+    const x0 = s.player.x;
+    s = run(s, idle, 2);
+    expect(s.player.x).toBeGreaterThan(x0 + 40);
+    expect(s.lives).toBe(START_LIVES);
+  });
+
+  it("you can jump up through a platform from below and land on it", () => {
+    const level = parseLevel(["......F", ".......", ".......", ".P.....", "#######"], [{ x: 0, y: 2, width: 4, axis: "x", range: 0, speed: 0 }]);
+    let s = run(createGame(level), idle, 0.3);
+    s = runUntil(s, { left: false, right: false, jump: true }, (st) => st.riding === 0, 2);
+    expect(s.riding).toBe(0);
+    expect(s.player.y + s.player.h).toBeCloseTo(2 * TILE, 5);
+  });
+
+  it("lifts raise you", () => {
+    const level = parseLevel(["......F", ".......", ".......", ".P.....", "#######"], [{ x: 0, y: 4, width: 4, axis: "y", range: 3, speed: 30 }]);
+    let s = run(createGame(level), idle, 0.3);
+    const y0 = s.player.y;
+    s = run(s, idle, 1.5);
+    expect(s.player.y).toBeLessThan(y0 - 30);
+  });
+
+  it("every level is valid, and every wide pit has a platform that spans it", () => {
+    const levels = allLevels();
+    expect(levels).toHaveLength(3);
+    for (const level of levels) {
+      const ground = level.solid[10];
+      for (let x = 0; x < level.width; ) {
+        if (ground[x]) {
+          x++;
+          continue;
+        }
+        let end = x;
+        while (end + 1 < level.width && !ground[end + 1]) end++;
+        const width = end - x + 1;
+        if (width > 3) {
+          const spanned = level.platforms.some(
+            (p) => p.axis === "x" && p.x <= x && p.x + p.range + p.width >= end + 1,
+          ) || level.platforms.filter((p) => p.axis === "x" && p.x + p.range + p.width > x && p.x <= end).length >= 2;
+          expect(spanned, `pit at ${x}-${end}`).toBe(true);
+        }
+        x = end + 1;
+      }
+    }
+  });
+
+  it("carries coins and lives into the next level", () => {
+    const [, second] = allLevels();
+    const s = createGame(second, { coins: 12, lives: 2, bricks: 4 });
+    expect(s).toMatchObject({ coinsCollected: 12, lives: 2, bricksSmashed: 4 });
+    expect(s.platforms.length).toBeGreaterThan(0);
+  });
+});

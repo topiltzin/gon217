@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { Locale } from "./i18n";
 
 /**
@@ -51,17 +50,20 @@ export const MAX_NICK_NUMBER = 99;
 
 export type Nickname = { adjective: Adjective; animal: Animal; number: number };
 
-export const nicknameSchema = z.object({
-  adjective: z.enum(Object.keys(ADJECTIVES) as [Adjective, ...Adjective[]]),
-  animal: z.enum(Object.keys(ANIMALS) as [Animal, ...Animal[]]),
-  number: z.number().int().min(1).max(MAX_NICK_NUMBER),
-});
+/** What a player types to sign up or log in. Validated on the server by `credentialsSchema` (lib/player-schemas.ts). */
+export type Credentials = Nickname & { pin: string };
 
-export const credentialsSchema = nicknameSchema.extend({
-  pin: z.string().regex(/^\d{4}$/),
-});
-
-export type Credentials = z.infer<typeof credentialsSchema>;
+/**
+ * Client-side check of the sign-up/log-in form (the server re-checks with
+ * `credentialsSchema`). Plain code rather than Zod, so Zod stays off the client.
+ */
+export function parseCredentials(input: { adjective: string; animal: string; number: number; pin: string }): Credentials | null {
+  const { adjective, animal, number, pin } = input;
+  if (!Object.hasOwn(ADJECTIVES, adjective) || !Object.hasOwn(ANIMALS, animal)) return null;
+  if (!Number.isInteger(number) || number < 1 || number > MAX_NICK_NUMBER) return null;
+  if (!/^\d{4}$/.test(pin)) return null;
+  return { adjective: adjective as Adjective, animal: animal as Animal, number, pin };
+}
 
 /** English "Brave Tiger 7", Spanish "Tigre Valiente 7". */
 export function formatNickname({ adjective, animal, number }: Nickname, locale: Locale): string {
@@ -73,7 +75,3 @@ export function formatNickname({ adjective, animal, number }: Nickname, locale: 
 /** Highest sensible score for any game; anything else is rejected by the API. */
 export const MAX_SCORE = 100_000;
 
-export const scoreSubmissionSchema = z.object({
-  slug: z.string().max(64),
-  score: z.number().int().min(0).max(MAX_SCORE),
-});

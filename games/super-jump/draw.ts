@@ -1,4 +1,4 @@
-import { EFFECT_S, type JumpState, TILE } from "./logic";
+import { EFFECT_S, type JumpState, PLATFORM_H, type Theme, TILE } from "./logic";
 
 export const VIEW_W = 20 * TILE; // 320 logical pixels
 export const VIEW_H = 12 * TILE; // 192 logical pixels
@@ -28,6 +28,13 @@ const C = {
   checkpoint: "#e40058",
 };
 
+/** Sky, hills and clouds per level theme. */
+const THEMES: Record<Theme, { sky: string; cloud: string; cloudShade: string; hillDark: string; hillLight: string }> = {
+  day: { sky: C.sky, cloud: C.cloud, cloudShade: C.cloudShade, hillDark: C.hillDark, hillLight: C.hillLight },
+  sunset: { sky: "#f4845f", cloud: "#ffd6a5", cloudShade: "#f7a072", hillDark: "#7b2d26", hillLight: "#b5523b" },
+  night: { sky: "#14183a", cloud: "#3b4170", cloudShade: "#272c55", hillDark: "#1f2a44", hillLight: "#2f3f63" },
+};
+
 export const SPRITE_URL = "/sprites/gonzalo.png";
 const SPRITE_W = 18;
 const SPRITE_H = 23;
@@ -43,11 +50,17 @@ export function drawFrame(
   const worldW = level.width * TILE;
   const camX = Math.round(Math.min(Math.max(player.x + player.w / 2 - VIEW_W / 2, 0), worldW - VIEW_W));
 
-  // Old-school sky, clouds and hills.
-  ctx.fillStyle = C.sky;
+  // Old-school sky, clouds and hills, tinted by the level's theme.
+  const theme = THEMES[level.theme];
+  ctx.fillStyle = theme.sky;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  drawClouds(ctx, reducedMotion ? 0 : camX * 0.15);
-  drawHills(ctx, reducedMotion ? 0 : camX * 0.4);
+  if (level.theme === "night") {
+    ctx.fillStyle = "#fff7d6";
+    for (let i = 0; i < 40; i++) ctx.fillRect((i * 97 - Math.round(camX * 0.05)) % VIEW_W, (i * 53) % 90, 1, 1);
+    ctx.fillRect(260, 20, 14, 14);
+  }
+  drawClouds(ctx, reducedMotion ? 0 : camX * 0.15, theme);
+  drawHills(ctx, reducedMotion ? 0 : camX * 0.4, theme);
 
   ctx.save();
   ctx.translate(-camX, 0);
@@ -96,6 +109,20 @@ export function drawFrame(
     ctx.fillRect(cx - half, cy - 6, half * 2, 12);
     ctx.fillStyle = C.coinShine;
     ctx.fillRect(cx - half, cy - 5, 1, 8);
+  }
+
+  // Moving platforms: steel girders with rivets.
+  for (const pl of s.platforms) {
+    const x = Math.round(pl.px);
+    const y = Math.round(pl.py);
+    ctx.fillStyle = C.groundInk;
+    ctx.fillRect(x, y, pl.w, PLATFORM_H);
+    ctx.fillStyle = "#9aa4b5";
+    ctx.fillRect(x + 1, y + 1, pl.w - 2, PLATFORM_H - 2);
+    ctx.fillStyle = "#d6dce6";
+    ctx.fillRect(x + 1, y + 1, pl.w - 2, 1);
+    ctx.fillStyle = "#4b5563";
+    for (let rx = x + 3; rx < x + pl.w - 2; rx += 6) ctx.fillRect(rx, y + 3, 1, 1);
   }
 
   // Smashed bricks fly apart in four pieces; bumped question blocks pop a coin.
@@ -263,13 +290,13 @@ function drawGround(ctx: CanvasRenderingContext2D, px: number, py: number, topEd
   }
 }
 
-function drawClouds(ctx: CanvasRenderingContext2D, offset: number) {
+function drawClouds(ctx: CanvasRenderingContext2D, offset: number, theme: (typeof THEMES)[Theme]) {
   const span = VIEW_W + 96;
   for (const [cx, cy] of [[30, 24], [150, 40], [250, 16], [330, 34]]) {
     const x = Math.round((((cx - offset) % span) + span) % span) - 48;
-    ctx.fillStyle = C.cloudShade;
+    ctx.fillStyle = theme.cloudShade;
     ctx.fillRect(x + 4, cy + 12, 40, 2);
-    ctx.fillStyle = C.cloud;
+    ctx.fillStyle = theme.cloud;
     ctx.fillRect(x + 8, cy + 2, 8, 4);
     ctx.fillRect(x + 4, cy + 6, 16, 4);
     ctx.fillRect(x + 16, cy, 12, 12);
@@ -279,7 +306,7 @@ function drawClouds(ctx: CanvasRenderingContext2D, offset: number) {
 }
 
 /** Blocky green hills that repeat every 240 pixels. */
-function drawHills(ctx: CanvasRenderingContext2D, offset: number) {
+function drawHills(ctx: CanvasRenderingContext2D, offset: number, theme: (typeof THEMES)[Theme]) {
   const period = 240;
   const base = VIEW_H - TILE * 2;
   const start = -(((offset % period) + period) % period);
@@ -291,10 +318,10 @@ function drawHills(ctx: CanvasRenderingContext2D, offset: number) {
         const y = base - (i + 1) * 4;
         ctx.fillStyle = C.hillInk;
         ctx.fillRect(x - 1, y, rw + 2, 4);
-        ctx.fillStyle = C.hillDark;
+        ctx.fillStyle = theme.hillDark;
         ctx.fillRect(x, y, rw, 4);
         if (i > 0) {
-          ctx.fillStyle = C.hillLight;
+          ctx.fillStyle = theme.hillLight;
           ctx.fillRect(x + 2, y + 1, 2, 2);
         }
       }

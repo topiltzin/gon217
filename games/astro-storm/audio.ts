@@ -6,13 +6,20 @@ export class AstroAudio {
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
 
+  private muted = false;
+
+  setMuted(muted: boolean) {
+    this.muted = muted;
+    if (this.master && this.ctx) this.master.gain.setTargetAtTime(muted ? 0 : 0.45, this.ctx.currentTime, 0.02);
+  }
+
   unlock() {
     if (!this.ctx) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return;
       this.ctx = new Ctor();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.45;
+      this.master.gain.value = this.muted ? 0 : 0.45;
       this.master.connect(this.ctx.destination);
       const len = this.ctx.sampleRate;
       this.noise = this.ctx.createBuffer(1, len, len);

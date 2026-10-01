@@ -4,6 +4,7 @@ import { type KeyboardEvent, useEffect, useEffectEvent, useRef, useState } from 
 import { useT } from "@/components/I18nProvider";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
+import { playSfx } from "@/lib/sfx";
 import { BoomArt, HouseArt, MowerArt, Pea, PlantArt, SnailArt, SunDropArt } from "./art";
 import {
   COLS,
@@ -11,6 +12,7 @@ import {
   PLANTS,
   type PlantKind,
   ROWS,
+  START_HEARTS,
   canPlace,
   collect,
   collectAll,
@@ -34,7 +36,16 @@ const PLANT_MOTION: Record<PlantKind, string> = {
   chili: "animate-shake",
 };
 
-export default function GardenGuard({ onFinish }: GameProps) {
+/** Sounds for what changed during one frame of the garden. */
+function sounds(before: GardenState, after: GardenState) {
+  if (after.booms.length > before.booms.filter((b) => b.until > after.time).length) playSfx("boom");
+  if (after.mowers.some((m, r) => m.state === "running" && before.mowers[r].state === "ready")) playSfx("mower");
+  if (after.shooed > before.shooed) playSfx("shoo");
+  if (after.hearts < before.hearts) playSfx("hurt");
+  if (after.status !== before.status) playSfx(after.status === "won" ? "win" : "lose");
+}
+
+export default function GardenGuard({ onFinish, paused }: GameProps) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<GardenState | null>(null);
@@ -43,6 +54,11 @@ export default function GardenGuard({ onFinish }: GameProps) {
   const [focus, setFocus] = useState({ row: 2, col: 0 });
   const [banner, setBanner] = useState<number | null>(null);
   const cellRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const pausedRef = useRef(paused);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   // Fixed-step loop. The latest state lives in a ref so planting (an event) and ticking (a frame) never race.
   useEffect(() => {
@@ -53,13 +69,16 @@ export default function GardenGuard({ onFinish }: GameProps) {
     const loop = () => {
       // Read the clock here rather than trusting the rAF timestamp, whose time base can differ.
       const now = performance.now();
-      acc += Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME);
+      const elapsed = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME);
       last = now;
-      let s = stateRef.current!;
+      if (!pausedRef.current) acc += elapsed;
+      const before = stateRef.current!;
+      let s = before;
       while (acc >= STEP) {
         s = step(s, STEP);
         acc -= STEP;
       }
+      if (s !== before) sounds(before, s);
       stateRef.current = s;
       setState(s);
       if (s.status === "playing") frame = requestAnimationFrame(loop);
@@ -75,6 +94,7 @@ export default function GardenGuard({ onFinish }: GameProps) {
       headline: state.status === "won" ? t.garden.won : t.garden.lost,
       detail: t.garden.detail(state.shooed),
       score: state.shooed,
+      stats: { won: state.status === "won", heartsLost: START_HEARTS - state.hearts, shooed: state.shooed },
     }),
   );
 
@@ -102,9 +122,11 @@ export default function GardenGuard({ onFinish }: GameProps) {
   /** Applies a player action to the latest state (the ref, so it never races the loop). */
   function update(action: (s: GardenState) => GardenState) {
     const current = stateRef.current;
-    if (!current) return;
+    if (!current || pausedRef.current) return;
     const next = action(current);
     if (next === current) return;
+    if (next.sun > current.sun) playSfx("sun");
+    else if (next.sun < current.sun) playSfx("plant");
     stateRef.current = next;
     setState(next);
   }
@@ -138,29 +160,30 @@ export default function GardenGuard({ onFinish }: GameProps) {
     if (currentWave === shownWave.current) return;
     shownWave.current = currentWave;
     setBanner(currentWave);
+    playSfx("levelUp");
     const timer = setTimeout(() => setBanner(null), 1800);
     return () => clearTimeout(timer);
   }, [currentWave]);
 
   return (
     <div ref={rootRef} className="mx-auto max-w-3xl">
-      <div className="mb-3 flex flex-wrap justify-center gap-2 font-display text-lg font-semibold sm:gap-3 sm:text-xl">
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-3 py-2 sm:px-4">
+      <div className="mb-3 flex flex-wrap justify-center gap-2 font-display text-lg sm:gap-3 sm:text-xl">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-3 py-2 sm:px-4">
           <Icon name="sun" className="size-5 text-sun" />
           <span className="sr-only">{t.garden.sun}: </span>
           {state.sun}
         </span>
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-3 py-2 sm:px-4">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-3 py-2 sm:px-4">
           <Icon name="heart" className="size-5 text-accent" />
           <span className="sr-only">{t.garden.hearts}: </span>
           {state.hearts}
         </span>
-        <span className="inline-flex items-center gap-2 rounded-2xl bg-card px-3 py-2 sm:px-4">
+        <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-3 py-2 sm:px-4">
           <Icon name="snail" className="size-5 text-sky" />
           <span className="sr-only">{t.garden.shooed}: </span>
           {state.shooed}
         </span>
-        <span className="rounded-2xl bg-card px-3 py-2 sm:px-4">{t.garden.wave(currentWave, WAVES)}</span>
+        <span className="rounded-lg border border-white/10 bg-card px-3 py-2 sm:px-4">{t.garden.wave(currentWave, WAVES)}</span>
       </div>
       <p role="status" className="sr-only">
         {t.garden.status(state.hearts, currentWave)}
@@ -176,7 +199,7 @@ export default function GardenGuard({ onFinish }: GameProps) {
               type="button"
               aria-pressed={selected === kind}
               onClick={() => setSelected(kind)}
-              className={`flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border-4 p-2 transition-colors duration-(--duration-fast) sm:flex-col md:flex-row md:gap-2 ${
+              className={`flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 transition-colors duration-(--duration-fast) sm:flex-col md:flex-row md:gap-2 ${
                 selected === kind ? "border-sun bg-muted" : "border-transparent bg-card"
               } ${affordable ? "" : "opacity-60"}`}
             >
@@ -184,7 +207,7 @@ export default function GardenGuard({ onFinish }: GameProps) {
                 <PlantArt kind={kind} className="size-11" />
               </span>
               <span className="text-center sm:text-left">
-                <span className="block text-sm font-extrabold leading-tight sm:text-base">
+                <span className="block text-sm font-bold uppercase leading-tight tracking-wide sm:text-base">
                   <span aria-hidden="true">{i + 1}. </span>
                   {t.garden.plants[kind]}
                 </span>

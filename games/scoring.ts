@@ -9,6 +9,9 @@ export type Scoring = { direction: ScoreDirection; unit: ScoreUnit };
  */
 export const gameScoring: Record<string, Scoring> = {
   "memory-match": { direction: "lower", unit: "moves" },
+  // Memory Match keeps one leaderboard per board size; the 20-card board uses the plain slug.
+  "memory-match-12": { direction: "lower", unit: "moves" },
+  "memory-match-30": { direction: "lower", unit: "moves" },
   "catch-it": { direction: "higher", unit: "stars" },
   "super-jump": { direction: "higher", unit: "coins" },
   "garden-guard": { direction: "higher", unit: "snails" },
