@@ -26,7 +26,7 @@ export function VideoList({ videos, hostName }: { videos: Video[]; hostName: str
 
   return (
     <section aria-labelledby="videos-heading" className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
-      <h2 id="videos-heading" className="flex items-center gap-3 text-4xl font-bold">
+      <h2 id="videos-heading" className="flex items-center gap-3 text-3xl uppercase sm:text-4xl">
         <Icon name="tv" className="size-9 text-accent" />
         {t.videos}
       </h2>
@@ -43,7 +43,7 @@ export function VideoList({ videos, hostName }: { videos: Video[]; hostName: str
                   onClick={() => open(video)}
                   className="flex min-h-24 w-full cursor-pointer items-center gap-4 rounded-(--radius-card) bg-card p-5 text-left transition-transform duration-(--duration-base) hover:-translate-y-1"
                 >
-                  <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent text-on-accent">
+                  <span className="grid size-14 shrink-0 place-items-center rounded-lg bg-accent text-on-accent">
                     <Icon name="play" className="size-8" />
                   </span>
                   <span>

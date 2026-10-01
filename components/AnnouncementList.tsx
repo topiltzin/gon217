@@ -16,7 +16,7 @@ export function AnnouncementList({ announcements, games, hostName, locale }: Pro
   const dateFormat = new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
   return (
     <section aria-labelledby="news-heading" className="rounded-(--radius-card) bg-card p-6 sm:p-8">
-      <h3 id="news-heading" className="flex items-center gap-2 text-3xl font-bold">
+      <h3 id="news-heading" className="flex items-center gap-2 text-2xl uppercase sm:text-3xl">
         <Icon name="megaphone" className="size-7 text-accent" />
         {t.news}
       </h3>
@@ -30,8 +30,8 @@ export function AnnouncementList({ announcements, games, hostName, locale }: Pro
             const game = games.find((g) => g.slug === a.gameSlug);
             return (
               <li key={a.id}>
-                <article className="rounded-2xl bg-muted p-5">
-                  <time dateTime={a.date} className="text-sm font-bold text-sun">
+                <article className="rounded-lg border-l-2 border-secondary bg-muted p-5">
+                  <time dateTime={a.date} className="eyebrow text-sun">
                     {dateFormat.format(new Date(`${a.date}T00:00:00Z`))}
                   </time>
                   <h4 className="mt-1 font-display text-2xl font-semibold">{a.title}</h4>

@@ -46,7 +46,7 @@ export function Logo({ name, tag }: { name: string; tag: string }) {
     <span className="flex items-center gap-3">
       <LogoMark className="size-11 shrink-0 transition-transform duration-(--duration-fast) group-hover:-rotate-6" />
       <span className="flex flex-col leading-none">
-        <span className="font-display text-2xl font-bold tracking-tight">{name}</span>
+        <span className="font-display text-xl tracking-tight sm:text-2xl">{name}</span>
         <span className="mt-0.5 text-[0.7rem] font-extrabold tracking-[0.2em] text-sun uppercase">{tag}</span>
       </span>
     </span>

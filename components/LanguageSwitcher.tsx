@@ -19,7 +19,7 @@ export function LanguageSwitcher() {
       hrefLang={target}
       lang={target}
       aria-label={dictionaries[locale].switchLanguage}
-      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl bg-card px-4 font-display text-lg font-semibold transition-colors duration-(--duration-fast) hover:bg-muted"
+      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-card px-3 font-display text-sm uppercase sm:px-4 sm:text-base sm:tracking-wide transition-colors duration-(--duration-fast) hover:bg-muted"
     >
       <Icon name="languages" className="size-5 text-sun" />
       {dictionaries[target].languageName}

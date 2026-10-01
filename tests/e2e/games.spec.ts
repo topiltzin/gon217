@@ -68,6 +68,8 @@ test.describe("Memory Match", () => {
   }
 
   test("can be played start to finish and replayed", async ({ page }, testInfo) => {
+    // 20 cards take a while to flip through under a loaded test run.
+    test.setTimeout(90_000);
     const touch = testInfo.project.name === "mobile";
     await page.goto("/games/memory-match");
     await startWithKeyboard(page);

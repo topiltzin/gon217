@@ -28,10 +28,10 @@
   --color-sky: #38bdf8;
   --color-on-sky: #0f0f23;
 
-  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
-  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-russo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-chakra), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 1.5rem;
+  --radius-card: 0.875rem;
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 150ms;
   --duration-base: 220ms;
@@ -132,10 +132,21 @@ html {
 
 body {
   background-color: var(--color-background);
+  /* Neon glows over a faint tech grid that fades out toward the bottom. */
   background-image:
-    radial-gradient(circle at 15% 10%, rgb(124 58 237 / 0.28), transparent 40%),
+    radial-gradient(circle at 15% 10%, rgb(124 58 237 / 0.3), transparent 40%),
     radial-gradient(circle at 85% 30%, rgb(244 63 94 / 0.16), transparent 35%),
-    radial-gradient(circle at 50% 100%, rgb(56 189 248 / 0.12), transparent 45%);
+    radial-gradient(circle at 50% 100%, rgb(56 189 248 / 0.12), transparent 45%),
+    linear-gradient(to bottom, transparent, var(--color-background) 85%),
+    linear-gradient(rgb(167 139 250 / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(167 139 250 / 0.07) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto,
+    48px 48px,
+    48px 48px;
   background-attachment: fixed;
   color: var(--color-foreground);
   font-family: var(--font-sans);
@@ -147,14 +158,33 @@ h1,
 h2,
 h3 {
   font-family: var(--font-display);
+  font-weight: 400;
   line-height: 1.15;
+  letter-spacing: 0.01em;
   text-wrap: balance;
+}
+
+/* Russo One has a single weight: never fake a bold version of it. */
+h1,
+h2,
+h3,
+.font-display {
+  font-synthesis-weight: none;
+}
+
+/* A small uppercase label, like a HUD readout. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 :focus-visible {
   outline: 4px solid var(--color-sun);
   outline-offset: 3px;
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fredoka, Nunito } from "next/font/google";
+import { Chakra_Petch, Russo_One } from "next/font/google";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -12,8 +12,9 @@ import { getSite } from "@/lib/content";
 import { LOCALES, getDictionary, isLocale } from "@/lib/i18n";
 import "../globals.css";
 
-const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"] });
-const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"] });
+// Self-hosted at build time by next/font (the CSP allows no third-party requests).
+const russo = Russo_One({ variable: "--font-russo", subsets: ["latin"], weight: "400" });
+const chakra = Chakra_Petch({ variable: "--font-chakra", subsets: ["latin"], weight: ["400", "600", "700"] });
 
 // Only /en and /es exist; any other first segment is a 404.
 export const dynamicParams = false;
@@ -44,7 +45,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const t = getDictionary(lang);
 
   return (
-    <html lang={lang} className={`${fredoka.variable} ${nunito.variable} h-full antialiased`}>
+    <html lang={lang} className={`${russo.variable} ${chakra.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <I18nProvider locale={lang}>
           <PlayerProvider>

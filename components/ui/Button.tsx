@@ -4,18 +4,18 @@ import type { ComponentProps, ReactNode } from "react";
 type Variant = "primary" | "accent" | "ghost";
 
 const base =
-  "inline-flex min-h-12 min-w-12 cursor-pointer select-none items-center justify-center gap-2 rounded-2xl px-6 py-3 font-display text-lg font-semibold " +
+  "inline-flex min-h-12 min-w-12 cursor-pointer select-none items-center justify-center gap-2 rounded-lg px-6 py-3 font-display text-base uppercase tracking-wider " +
   "transition-[transform,box-shadow,background-color] duration-(--duration-fast) ease-out " +
-  "active:translate-y-1 disabled:cursor-not-allowed disabled:opacity-60";
+  "active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60";
 
-// "Tactile" buttons: a solid bottom shadow that collapses when pressed.
+// Neon buttons: a soft glow that brightens on hover.
 const variants: Record<Variant, string> = {
   primary:
-    "bg-primary text-on-primary shadow-[0_5px_0_0_var(--color-border)] hover:bg-[#8b4ef5] active:shadow-[0_1px_0_0_var(--color-border)]",
+    "bg-primary text-on-primary shadow-[0_0_18px_rgb(124_58_237/0.35)] hover:bg-[#8b4ef5] hover:shadow-[0_0_28px_rgb(124_58_237/0.6)]",
   accent:
-    "bg-accent text-on-accent shadow-[0_5px_0_0_#9f1239] hover:bg-[#f65a75] active:shadow-[0_1px_0_0_#9f1239]",
+    "bg-accent text-on-accent shadow-[0_0_18px_rgb(244_63_94/0.35)] hover:bg-[#f65a75] hover:shadow-[0_0_28px_rgb(244_63_94/0.6)]",
   ghost:
-    "bg-muted text-foreground shadow-[0_5px_0_0_#15152a] hover:bg-[#32324a] active:shadow-[0_1px_0_0_#15152a]",
+    "border border-white/10 bg-muted text-foreground hover:border-secondary/60 hover:bg-[#32324a]",
 };
 
 export function buttonClass(variant: Variant = "primary", extra = "") {

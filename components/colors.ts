@@ -18,3 +18,14 @@ export const glowClass: Record<CardColor, string> = {
   mint: "hover:shadow-mint/40",
   sky: "hover:shadow-sky/40",
 };
+
+/** Card "cover art": a neon gradient in the game's colour fading into the card. Decorative only (no text on it). */
+export const coverClass: Record<CardColor, string> = {
+  primary: "from-primary/80 via-primary/25",
+  secondary: "from-secondary/70 via-secondary/20",
+  accent: "from-accent/75 via-accent/20",
+  sun: "from-sun/60 via-sun/15",
+  mint: "from-mint/60 via-mint/15",
+  sky: "from-sky/65 via-sky/15",
+};
+

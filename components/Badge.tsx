@@ -18,7 +18,7 @@ export function Badge({ kind, locale }: { kind: BadgeKind; locale: Locale }) {
   const { label, icon, className } = styles[kind];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-extrabold ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${className}`}
     >
       <Icon name={icon} className="size-4" />
       {getDictionary(locale).badges[label]}
