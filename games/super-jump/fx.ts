@@ -41,7 +41,7 @@ export function updateCamera(cam: Camera, s: JumpState, dt: number, reduced: boo
 
 /* ---------- particles ---------- */
 
-type Shape = "dot" | "spark" | "ring" | "heart" | "chunk" | "smoke" | "streak";
+type Shape = "dot" | "spark" | "ring" | "heart" | "chunk" | "smoke" | "streak" | "text";
 type Particle = {
   x: number;
   y: number;
@@ -56,6 +56,8 @@ type Particle = {
   rot: number;
   spin: number;
   grow: number;
+  /** The word of a comic sound-effect burst. */
+  label?: string;
 };
 
 export type Fx = {
@@ -90,14 +92,17 @@ export function createFx(hero: Hero = "deku"): Fx {
             fx.particles.push(p(e.x + (Math.random() - 0.5) * 10, e.y + (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 120, -60 - Math.random() * 120, 420, 0.7 + Math.random() * 0.4, 2 + Math.random() * 2.4, i % 3 === 0 ? pal.brick[1] : pal.brick[0], "chunk", (Math.random() - 0.5) * 12));
           }
           dust(fx, e.x, e.y, 6, 1.2);
+          comic(fx, e.x, e.y - 12, "CRACK!", "#ffd9a0", 8, false);
           shake(2);
         } else if (e.kind === "bump") dust(fx, e.x, e.y + 6, 4, 0.8);
         else if (e.kind === "stomp") {
           burst(fx, e.x, e.y, 9, "#fff4a0");
+          comic(fx, e.x, e.y - 10, "BONK!", "#ffffff", 8, false);
           ring(fx, e.x, e.y, "#ffffff", 14);
           shake(1.5);
         } else if (e.kind === "punch") {
           ring(fx, e.x + s.player.facing * 6, e.y, acc.main, 12);
+          comic(fx, e.x + s.player.facing * 12, e.y - 8, hero === "bakugo" ? "BOOM!" : "SMASH!", acc.main, 9, false);
           if (hero === "bakugo") {
             burst(fx, e.x + s.player.facing * 8, e.y, 8, "#ffb040");
             smoke(fx, e.x + s.player.facing * 8, e.y, 3);
@@ -105,16 +110,19 @@ export function createFx(hero: Hero = "deku"): Fx {
         }
         else if (e.kind === "kill") {
           burst(fx, e.x, e.y, 12, hero === "bakugo" ? "#ffb040" : "#9dffc0");
+          comic(fx, e.x, e.y - 10, "POW!", "#ffe14a", 10, false);
           smoke(fx, e.x, e.y, 5);
           ring(fx, e.x, e.y, "#ffffff", 18);
           shake(3);
         } else if (e.kind === "hurt") {
           burst(fx, e.x, e.y, 12, "#ff5a5a");
+          comic(fx, e.x, e.y - 12, "OUCH!", "#ff6a6a", 9, true);
           shake(4);
         } else if (e.kind === "power") {
           burst(fx, e.x, e.y, 18, acc.main);
           ring(fx, e.x, e.y, acc.main, 26);
           ring(fx, e.x, e.y, "#ffffff", 16);
+          comic(fx, e.x, e.y - 18, hero === "bakugo" ? "NITRO!" : "FULL COWL!", acc.main, 10, true);
           shake(2);
         } else if (e.kind === "heart") {
           for (let i = 0; i < 6; i++) fx.particles.push(p(e.x + (Math.random() - 0.5) * 14, e.y, (Math.random() - 0.5) * 30, -40 - Math.random() * 30, -30, 1 + Math.random() * 0.4, 3 + Math.random() * 1.5, "#ff6a8e", "heart", 0));
@@ -123,6 +131,7 @@ export function createFx(hero: Hero = "deku"): Fx {
         } else if (e.kind === "bossHit") {
           burst(fx, e.x, e.y, 16, "#ffb35a");
           smoke(fx, e.x, e.y, 6);
+          comic(fx, e.x, e.y - 20, "WHAM!", "#ffb35a", 12, true);
           shake(5);
         } else if (e.kind === "bossDown") {
           for (let i = 0; i < 4; i++) {
@@ -130,6 +139,7 @@ export function createFx(hero: Hero = "deku"): Fx {
             smoke(fx, e.x + (Math.random() - 0.5) * 22, e.y + (Math.random() - 0.5) * 22, 6);
           }
           ring(fx, e.x, e.y, "#ffffff", 40);
+          comic(fx, e.x, e.y - 22, "PLUS ULTRA!", "#ffe14a", 15, true);
           shake(9);
         }
       }
@@ -195,6 +205,32 @@ export function createFx(hero: Hero = "deku"): Fx {
           ctx.fillRect(-q.size / 2, -q.size / 2, q.size, q.size);
           ctx.fillStyle = "rgba(0,0,0,0.3)";
           ctx.fillRect(-q.size / 2, q.size / 2 - 0.7, q.size, 0.7);
+        } else if (q.shape === "text" && q.label) {
+          const age = q.max - q.life;
+          const pop = 1 + 0.45 * Math.max(0, 1 - age * 9);
+          ctx.rotate(q.rot);
+          ctx.scale(pop, pop);
+          ctx.globalAlpha = Math.min(1, a * 3);
+          // A spiky burst behind the word.
+          const w = q.label.length * q.size * 0.36 + 5;
+          ctx.fillStyle = "rgba(10,10,20,0.78)";
+          ctx.beginPath();
+          for (let i = 0; i < 18; i++) {
+            const ang = (i / 18) * Math.PI * 2;
+            const rr = i % 2 === 0 ? 1 : 0.78;
+            ctx.lineTo(Math.cos(ang) * w * rr, Math.sin(ang) * q.size * 1.05 * rr);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.font = `italic 900 ${q.size}px Impact, "Arial Black", sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = q.size * 0.28;
+          ctx.strokeStyle = "#101018";
+          ctx.strokeText(q.label, 0, 0.5);
+          ctx.fillStyle = q.color;
+          ctx.fillText(q.label, 0, 0.5);
         } else if (q.shape === "streak") {
           ctx.globalAlpha = a;
           ctx.strokeStyle = q.color;
@@ -271,6 +307,16 @@ function smoke(fx: Fx, x: number, y: number, n: number) {
   for (let i = 0; i < n; i++) {
     fx.particles.push(p(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 40, -10 - Math.random() * 30, -10, 0.5 + Math.random() * 0.4, 3 + Math.random() * 3, "rgba(70,70,90,0.7)", "smoke", 0, 8));
   }
+}
+
+/** A comic sound-effect word that pops up and floats away. `force` skips the limit of one at a time. */
+function comic(fx: Fx, x: number, y: number, label: string, color: string, size: number, force: boolean) {
+  const recent = fx.particles.some((q) => q.shape === "text" && q.max - q.life < 0.25);
+  if (recent && !force) return;
+  const q = p(x, y, (Math.random() - 0.5) * 8, -22, 0, 0.8, size, color, "text", 0);
+  q.label = label;
+  q.rot = (Math.random() - 0.5) * 0.3;
+  fx.particles.push(q);
 }
 
 function ring(fx: Fx, x: number, y: number, color: string, radius: number) {

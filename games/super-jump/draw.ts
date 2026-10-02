@@ -1,8 +1,8 @@
 import { drawCheckpoint, drawCoin, drawEnemy, drawFlag, drawItem, drawPlatform, drawSpikes } from "./art";
 import type { Camera, Fx } from "./fx";
-import { type Hero, drawHero } from "./heroes";
+import { HERO_ACCENT, type Hero, drawHero } from "./heroes";
 import { EFFECT_S, type JumpState, type Level, TILE, bossStatus } from "./logic";
-import { type TileKind, VIEW_H, VIEW_W, drawAmbient, drawBackdrop, drawOverlay, drawTiles, getPixelScale } from "./scenery";
+import { type TileKind, VIEW_H, VIEW_W, drawAmbient, drawBackdrop, drawOverlay, drawSpeedLines, drawTiles, getPixelScale } from "./scenery";
 
 export { VIEW_H, VIEW_W, clearSceneryCache, getPixelScale, setPixelScale } from "./scenery";
 
@@ -108,5 +108,6 @@ export function drawFrame(ctx: CanvasRenderingContext2D, s: JumpState, { camera,
   ctx.restore();
 
   drawAmbient(ctx, level.theme, camX, camY, s.time, reducedMotion);
+  if (s.player.cowl > 0 && !reducedMotion) drawSpeedLines(ctx, s.time, HERO_ACCENT[hero].light, Math.min(1, s.player.cowl / 1.2) * 0.55);
   drawOverlay(ctx, level.theme, s.time, reducedMotion);
 }

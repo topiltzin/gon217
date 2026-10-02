@@ -209,6 +209,191 @@ function spires(ctx: Ctx, rand: () => number, color: string, glow: string) {
   ctx.stroke();
 }
 
+/** U.A. High: two wings joined by a tall glass tower, with the school's lettering. */
+function uaSchool(ctx: Ctx, x: number) {
+  const concrete = "#c8d3e2";
+  const dark = "#8fa2bd";
+  const glass = ctx.createLinearGradient(0, LAYER_BASE - 118, 0, LAYER_BASE);
+  glass.addColorStop(0, "#9ad3ff");
+  glass.addColorStop(1, "#4c86c8");
+  // Wings.
+  for (const wx of [x, x + 86]) {
+    const g = ctx.createLinearGradient(0, LAYER_BASE - 70, 0, LAYER_BASE);
+    g.addColorStop(0, concrete);
+    g.addColorStop(1, dark);
+    ctx.fillStyle = g;
+    ctx.fillRect(wx, LAYER_BASE - 70, 52, 70);
+    ctx.fillStyle = "#6f86a8";
+    ctx.fillRect(wx - 2, LAYER_BASE - 72, 56, 4);
+    ctx.fillStyle = "rgba(40,70,120,0.55)";
+    for (let wy = LAYER_BASE - 62; wy < LAYER_BASE - 6; wy += 11) for (let ix = wx + 4; ix < wx + 48; ix += 8) ctx.fillRect(ix, wy, 5, 7);
+  }
+  // Central glass tower.
+  ctx.fillStyle = "#2a4a78";
+  ctx.fillRect(x + 48, LAYER_BASE - 120, 42, 120);
+  ctx.fillStyle = glass;
+  ctx.fillRect(x + 50, LAYER_BASE - 118, 38, 116);
+  ctx.strokeStyle = "rgba(255,255,255,0.45)";
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  for (let i = 1; i < 4; i++) {
+    ctx.moveTo(x + 50 + i * 9.5, LAYER_BASE - 118);
+    ctx.lineTo(x + 50 + i * 9.5, LAYER_BASE - 2);
+  }
+  for (let wy = LAYER_BASE - 104; wy < LAYER_BASE - 4; wy += 14) {
+    ctx.moveTo(x + 50, wy);
+    ctx.lineTo(x + 88, wy);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.beginPath();
+  ctx.moveTo(x + 52, LAYER_BASE - 116);
+  ctx.lineTo(x + 66, LAYER_BASE - 116);
+  ctx.lineTo(x + 52, LAYER_BASE - 60);
+  ctx.fill();
+  // Roof, mast and flag.
+  ctx.fillStyle = "#6f86a8";
+  ctx.fillRect(x + 46, LAYER_BASE - 124, 46, 5);
+  ctx.fillRect(x + 68, LAYER_BASE - 142, 1.4, 19);
+  ctx.fillStyle = "#e0405a";
+  ctx.fillRect(x + 69.4, LAYER_BASE - 142, 8, 5);
+  // Lettering.
+  ctx.fillStyle = "#0d2a55";
+  ctx.font = "bold 13px Impact, 'Arial Black', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("U.A.", x + 69, LAYER_BASE - 96);
+  ctx.textAlign = "start";
+  // The big entrance gate in front.
+  ctx.fillStyle = "#e8eef6";
+  ctx.fillRect(x + 52, LAYER_BASE - 10, 34, 10);
+  ctx.fillStyle = "#274a7a";
+  ctx.fillRect(x + 60, LAYER_BASE - 8, 18, 8);
+}
+
+/** Broken building tops: jagged cuts and a few girders. */
+function ruinedTops(ctx: Ctx, color: string, rand: () => number) {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 9; i++) {
+    const x = 20 + i * 56 + rand() * 20;
+    const h = 36 + rand() * 40;
+    ctx.beginPath();
+    ctx.moveTo(x, LAYER_BASE);
+    ctx.lineTo(x, LAYER_BASE - h);
+    ctx.lineTo(x + 6, LAYER_BASE - h - 6);
+    ctx.lineTo(x + 10, LAYER_BASE - h + 4);
+    ctx.lineTo(x + 16, LAYER_BASE - h - 2);
+    ctx.lineTo(x + 22, LAYER_BASE - h + 10);
+    ctx.lineTo(x + 22, LAYER_BASE);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x + 6, LAYER_BASE - h - 6);
+    ctx.lineTo(x + 9, LAYER_BASE - h - 14);
+    ctx.stroke();
+  }
+}
+
+/** A big glass dome with ribs, like a disaster-training arena. */
+function dome(ctx: Ctx, x: number, color: string) {
+  const g = ctx.createRadialGradient(x, LAYER_BASE - 30, 4, x, LAYER_BASE, 64);
+  g.addColorStop(0, "rgba(255,210,170,0.9)");
+  g.addColorStop(1, color);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, LAYER_BASE, 62, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(60,30,60,0.55)";
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  for (let i = 1; i < 6; i++) {
+    const a = Math.PI + (i / 6) * Math.PI;
+    ctx.moveTo(x, LAYER_BASE);
+    ctx.lineTo(x + Math.cos(a) * 62, LAYER_BASE + Math.sin(a) * 62);
+  }
+  ctx.arc(x, LAYER_BASE, 40, Math.PI, 0);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fillRect(x - 70, LAYER_BASE - 8, 140, 8);
+}
+
+/** A glowing hero billboard: a star and a bold silhouette on a neon panel. */
+function billboard(ctx: Ctx, x: number, y: number, neon: string, variant: number) {
+  ctx.fillStyle = "#0a0f22";
+  ctx.fillRect(x - 1, y - 1, 52, 70);
+  const g = ctx.createLinearGradient(0, y, 0, y + 68);
+  g.addColorStop(0, neon);
+  g.addColorStop(1, shade(neon, -0.55));
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, 50, 68);
+  // Halftone dots.
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  for (let iy = y + 3; iy < y + 66; iy += 5) for (let ix = x + 3 + ((iy - y) % 10 === 3 ? 2.5 : 0); ix < x + 48; ix += 5) {
+    ctx.beginPath();
+    ctx.arc(ix, iy, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Silhouette hero striking a pose.
+  ctx.fillStyle = "#0a0f22";
+  ctx.beginPath();
+  ctx.arc(x + 25, y + 20, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x + 20, y + 26, 11, 16);
+  ctx.save();
+  ctx.translate(x + 25, y + 30);
+  ctx.rotate(variant === 1 ? -0.9 : variant === 2 ? 0.5 : -1.5);
+  ctx.fillRect(0, -2, 20, 4);
+  ctx.restore();
+  ctx.fillRect(x + 20, y + 42, 4, 14);
+  ctx.fillRect(x + 27, y + 42, 4, 14);
+  // Lettering strip.
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 8px Impact, 'Arial Black', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("PLUS ULTRA", x + 25, y + 64);
+  ctx.textAlign = "start";
+  const glow = ctx.createRadialGradient(x + 25, y + 34, 10, x + 25, y + 34, 60);
+  glow.addColorStop(0, rgba(neon, 0.35));
+  glow.addColorStop(1, rgba(neon, 0));
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 40, y - 30, 130, 130);
+}
+
+/** A twisted tower with a glowing red window, the villains' lookout. */
+function villainTower(ctx: Ctx, x: number) {
+  const g = ctx.createLinearGradient(0, LAYER_BASE - 130, 0, LAYER_BASE);
+  g.addColorStop(0, "#2a0f1c");
+  g.addColorStop(1, "#14060e");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - 20, LAYER_BASE);
+  ctx.lineTo(x - 16, LAYER_BASE - 80);
+  ctx.lineTo(x - 22, LAYER_BASE - 96);
+  ctx.lineTo(x - 8, LAYER_BASE - 112);
+  ctx.lineTo(x - 2, LAYER_BASE - 134);
+  ctx.lineTo(x + 6, LAYER_BASE - 110);
+  ctx.lineTo(x + 20, LAYER_BASE - 96);
+  ctx.lineTo(x + 14, LAYER_BASE - 78);
+  ctx.lineTo(x + 18, LAYER_BASE);
+  ctx.closePath();
+  ctx.fill();
+  const glow = ctx.createRadialGradient(x - 1, LAYER_BASE - 88, 0, x - 1, LAYER_BASE - 88, 30);
+  glow.addColorStop(0, "rgba(255,60,50,0.8)");
+  glow.addColorStop(1, "rgba(255,60,50,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(x - 32, LAYER_BASE - 120, 64, 64);
+  ctx.fillStyle = "#ff7a5a";
+  ctx.fillRect(x - 5, LAYER_BASE - 92, 8, 10);
+  ctx.strokeStyle = "rgba(255,90,70,0.6)";
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(x - 16, LAYER_BASE - 80);
+  ctx.lineTo(x - 6, LAYER_BASE - 60);
+  ctx.lineTo(x - 12, LAYER_BASE - 30);
+  ctx.stroke();
+}
+
 function buildLayers(theme: Theme, pal: Palette): HTMLCanvasElement[] {
   const layers: HTMLCanvasElement[] = [];
   const make = (draw: (ctx: Ctx) => void) => {
@@ -224,31 +409,7 @@ function buildLayers(theme: Theme, pal: Palette): HTMLCanvasElement[] {
     // A hero-school campus far away, rolling hills, then trees.
     make((ctx) => {
       skyline(ctx, pal.far, r, { minH: 24, maxH: 78, minW: 16, maxW: 34, edge: shade(pal.far, 0.25) });
-      // The hero school: two wings and a clock tower.
-      const school = shade(pal.far, -0.1);
-      ctx.fillStyle = school;
-      ctx.fillRect(176, LAYER_BASE - 46, 110, 46);
-      ctx.fillRect(210, LAYER_BASE - 96, 34, 96);
-      ctx.fillRect(206, LAYER_BASE - 100, 42, 5);
-      ctx.beginPath();
-      ctx.moveTo(212, LAYER_BASE - 100);
-      ctx.lineTo(227, LAYER_BASE - 118);
-      ctx.lineTo(242, LAYER_BASE - 100);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.beginPath();
-      ctx.arc(227, LAYER_BASE - 80, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = school;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(227, LAYER_BASE - 80);
-      ctx.lineTo(227, LAYER_BASE - 85);
-      ctx.moveTo(227, LAYER_BASE - 80);
-      ctx.lineTo(231, LAYER_BASE - 78);
-      ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      for (let wx = 182; wx < 282; wx += 9) if (wx < 208 || wx > 246) for (const wy of [LAYER_BASE - 38, LAYER_BASE - 22]) ctx.fillRect(wx, wy, 4, 7);
+      uaSchool(ctx, 150);
     });
     make((ctx) => hills(ctx, pal.mid, shade(pal.mid, 0.2), 40, 2, 0.4));
     make((ctx) => {
@@ -260,8 +421,9 @@ function buildLayers(theme: Theme, pal: Palette): HTMLCanvasElement[] {
   } else if (theme === "sunset") {
     make((ctx) => {
       skyline(ctx, pal.far, r, { minH: 20, maxH: 60, minW: 14, maxW: 30, edge: rgba("#ffb080", 0.4) });
-      crane(ctx, 90, pal.far);
-      crane(ctx, 340, pal.far);
+      ruinedTops(ctx, pal.far, rng(41));
+      dome(ctx, 330, pal.far);
+      crane(ctx, 60, pal.far);
     });
     make((ctx) => {
       // The harbour: a warm water band with ships and containers.
@@ -314,7 +476,12 @@ function buildLayers(theme: Theme, pal: Palette): HTMLCanvasElement[] {
     });
   } else if (theme === "night") {
     make((ctx) => skyline(ctx, pal.far, r, { minH: 30, maxH: 100, minW: 16, maxW: 32, windows: pal.lamp, antenna: true, edge: rgba("#8aa0ff", 0.25) }));
-    make((ctx) => skyline(ctx, pal.mid, r, { minH: 20, maxH: 70, minW: 20, maxW: 44, windows: "#ffd27a", edge: rgba("#6a80ff", 0.18) }));
+    make((ctx) => {
+      skyline(ctx, pal.mid, r, { minH: 20, maxH: 70, minW: 20, maxW: 44, windows: "#ffd27a", edge: rgba("#6a80ff", 0.18) });
+      billboard(ctx, 70, LAYER_BASE - 96, "#ff3d81", 0);
+      billboard(ctx, 250, LAYER_BASE - 84, "#3dd6ff", 1);
+      billboard(ctx, 410, LAYER_BASE - 100, "#ffd23d", 2);
+    });
     make((ctx) => {
       ctx.fillStyle = pal.near;
       ctx.fillRect(0, LAYER_BASE - 6, LAYER_W, LAYER_H);
@@ -333,7 +500,10 @@ function buildLayers(theme: Theme, pal: Palette): HTMLCanvasElement[] {
       }
     });
   } else {
-    make((ctx) => spires(ctx, r, pal.far, rgba("#ff6a4a", 0.5)));
+    make((ctx) => {
+      spires(ctx, r, pal.far, rgba("#ff6a4a", 0.5));
+      villainTower(ctx, 300);
+    });
     make((ctx) => {
       // Broken pillars and arches of the villains' lair.
       ctx.fillStyle = pal.mid;
@@ -529,19 +699,40 @@ export function drawAmbient(ctx: Ctx, theme: Theme, camX: number, camY: number, 
   }
 }
 
-let overlay: { theme: Theme; fill: CanvasGradient } | null = null;
+let overlay: { theme: Theme; canvas: HTMLCanvasElement } | null = null;
 
-/** Mood tint and soft screen edges in one fill, plus storm lightning, drawn over the finished picture. */
-export function drawOverlay(ctx: Ctx, theme: Theme, time: number, reduced: boolean) {
-  if (overlay?.theme !== theme) {
-    const pal = PALETTES[theme];
-    const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.45, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.62);
-    g.addColorStop(0, rgba(pal.tint, pal.tintAlpha));
-    g.addColorStop(1, "rgba(0,0,0,0.4)");
-    overlay = { theme, fill: g };
-  }
-  ctx.fillStyle = overlay.fill;
+/** Mood tint, soft screen edges and comic halftone dots in the corners, built once per theme. */
+function buildOverlay(theme: Theme): HTMLCanvasElement {
+  const pal = PALETTES[theme];
+  const [canvas, ctx] = makeCanvas(VIEW_W * scale, VIEW_H * scale);
+  ctx.scale(scale, scale);
+  const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.45, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.62);
+  g.addColorStop(0, rgba(pal.tint, pal.tintAlpha));
+  g.addColorStop(1, "rgba(0,0,0,0.4)");
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  // Halftone dots grow toward the corners, like a printed comic panel.
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  const step = 5;
+  for (let y = 0, row = 0; y < VIEW_H; y += step, row++) {
+    for (let x = (row % 2) * (step / 2); x < VIEW_W; x += step) {
+      const dx = (x - VIEW_W / 2) / (VIEW_W / 2);
+      const dy = (y - VIEW_H / 2) / (VIEW_H / 2);
+      const d = Math.hypot(dx, dy);
+      const r = Math.max(0, d - 0.82) * 4.6;
+      if (r < 0.15) continue;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.min(1.7, r), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  return canvas;
+}
+
+/** The finished-picture overlay plus storm lightning. */
+export function drawOverlay(ctx: Ctx, theme: Theme, time: number, reduced: boolean) {
+  if (overlay?.theme !== theme) overlay = { theme, canvas: buildOverlay(theme) };
+  ctx.drawImage(overlay.canvas, 0, 0, VIEW_W, VIEW_H);
   if (theme === "storm" && !reduced) {
     // Two quick flashes every few seconds.
     const phase = time % 6.5;
@@ -551,6 +742,30 @@ export function drawOverlay(ctx: Ctx, theme: Theme, time: number, reduced: boole
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
   }
+}
+
+/** Comic speed lines rushing in from the edges, for Full Cowl and explosions. */
+export function drawSpeedLines(ctx: Ctx, time: number, color: string, strength: number) {
+  const frame = Math.floor(time * 20);
+  const cx = VIEW_W / 2;
+  const cy = VIEW_H / 2;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.5 * strength;
+  const r = rng(frame * 977 + 3);
+  for (let i = 0; i < 34; i++) {
+    const a = r() * Math.PI * 2;
+    const inner = 0.62 + r() * 0.16;
+    const rx = VIEW_W * 0.62;
+    const ry = VIEW_H * 0.62;
+    const w = 0.025 + r() * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * rx * inner, cy + Math.sin(a) * ry * inner);
+    ctx.lineTo(cx + Math.cos(a - w) * rx * 1.25, cy + Math.sin(a - w) * ry * 1.25);
+    ctx.lineTo(cx + Math.cos(a + w) * rx * 1.25, cy + Math.sin(a + w) * ry * 1.25);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -808,23 +1023,26 @@ function renderBlock(ctx: Ctx, pal: Palette, kind: TileKind, frame: number) {
     ctx.fillRect(x - 0.4, y - 0.4, 0.5, 0.5);
   }
   if (used) return;
-  const ink = shade(base, -0.55);
   if (kind === "question") {
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 1.9;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.arc(8, 6.2, 2.6, Math.PI * 1.05, Math.PI * 2.35);
-    ctx.lineTo(8, 9.6);
-    ctx.stroke();
-    ctx.fillStyle = ink;
-    ctx.beginPath();
-    ctx.arc(8, 12.3, 1.1, 0, Math.PI * 2);
+    // A hero star, the mark of a Plus Ultra block.
+    const star = (cx: number, cy: number, r: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 === 0 ? r : r * 0.45;
+        ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+    };
+    ctx.lineJoin = "round";
+    star(8.3, 8.6, 5.4);
+    ctx.fillStyle = shade(base, -0.5);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = 0.7;
-    ctx.beginPath();
-    ctx.arc(7.6, 5.6, 2.5, Math.PI * 1.1, Math.PI * 1.6);
+    star(8, 8.2, 5.1);
+    ctx.fillStyle = "#fffbe0";
+    ctx.fill();
+    ctx.strokeStyle = shade(base, -0.45);
+    ctx.lineWidth = 0.6;
     ctx.stroke();
   } else if (kind === "cowl") {
     ctx.fillStyle = "#0b3a22";

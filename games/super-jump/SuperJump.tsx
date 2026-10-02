@@ -105,9 +105,9 @@ function HeroPortrait({ hero }: { hero: Hero }) {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawPortrait(ctx, hero, canvas.width / 2, canvas.height - 14, canvas.height / 44, 0, "ready");
+    drawPortrait(ctx, hero, canvas.width / 2, canvas.height - 18, canvas.height / 42, 0, "ready");
   }, [hero]);
-  return <canvas ref={ref} width={240} height={280} aria-hidden="true" className="h-40 w-auto" />;
+  return <canvas ref={ref} width={360} height={420} aria-hidden="true" className="h-52 w-auto sm:h-60" />;
 }
 
 export default function SuperJump({ onFinish, paused }: GameProps) {
@@ -303,23 +303,35 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
       }
       setHero(pick);
     };
+    const cardLook: Record<Hero, string> = {
+      deku: "bg-[linear-gradient(160deg,#0f5a32,#0a2416)] hover:border-[#3dff8a]/60",
+      bakugo: "bg-[linear-gradient(160deg,#7a3508,#2a1206)] hover:border-[#ff8a1f]/60",
+    };
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-6 rounded-(--radius-card) bg-card p-6 sm:p-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 rounded-(--radius-card) bg-card p-5 sm:p-8">
+        <p className="-skew-x-6 self-start border-2 border-sun bg-black px-4 py-1 font-display text-lg uppercase text-sun shadow-[4px_4px_0_#000] sm:text-2xl">
+          <span className="inline-block skew-x-6">{t.jump.plusUltra}</span>
+        </p>
         <fieldset>
           <legend className="mb-3 font-display text-2xl uppercase">{t.jump.chooseHero}</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {HEROES.map((h) => (
               <button
                 key={h}
                 type="button"
                 aria-pressed={pick === h}
                 onClick={() => setPick(h)}
-                className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-transparent bg-muted p-4 text-center transition-colors duration-(--duration-fast) hover:border-white/20 aria-pressed:border-sun aria-pressed:bg-[#32324a]"
+                className={`relative flex cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-lg border-4 border-transparent p-4 text-center shadow-[5px_5px_0_#000] transition-[transform,border-color] duration-(--duration-fast) hover:-translate-y-0.5 aria-pressed:border-sun aria-pressed:shadow-[5px_5px_0_#000,0_0_24px_rgba(255,209,102,0.35)] ${cardLook[h]}`}
               >
-                <HeroPortrait hero={h} />
-                <span className="block font-display text-xl">{t.jump.heroNames[h]}</span>
-                <span className="block text-sm text-muted-foreground">{t.jump.heroFull[h]}</span>
-                <span className="block text-muted-foreground">{t.jump.heroHints[h]}</span>
+                <span aria-hidden="true" className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,0.14)_1.2px,transparent_1.4px)] [background-size:9px_9px]" />
+                <span className="relative">
+                  <HeroPortrait hero={h} />
+                </span>
+                <span className="relative block -skew-x-6 bg-black/70 px-4 py-0.5 font-display text-2xl uppercase text-white">
+                  <span className="inline-block skew-x-6">{t.jump.heroNames[h]}</span>
+                </span>
+                <span className="relative block text-sm font-semibold uppercase tracking-wide text-white/80">{t.jump.heroFull[h]}</span>
+                <span className="relative block text-white/90">{t.jump.heroHints[h]}</span>
               </button>
             ))}
           </div>
@@ -327,37 +339,46 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
         <button
           type="button"
           onClick={start}
-          className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-8 font-display text-xl uppercase text-on-accent"
+          className="inline-flex min-h-14 -skew-x-6 cursor-pointer items-center justify-center border-4 border-black bg-accent px-8 font-display text-xl uppercase text-on-accent shadow-[5px_5px_0_#000] transition-transform duration-(--duration-fast) hover:-translate-y-0.5 active:translate-y-0.5"
         >
-          <Icon name="play" className="size-6" />
-          {t.jump.start}
+          <span className="inline-flex skew-x-6 items-center gap-2">
+            <Icon name="play" className="size-6" />
+            {t.jump.start}
+          </span>
         </button>
       </div>
     );
   }
 
   const control =
-    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-xl font-display text-lg uppercase transition-transform duration-(--duration-fast) active:scale-95";
-  const chip = "inline-flex items-center gap-2 rounded-lg border border-white/10 bg-card px-3 py-2 sm:px-4";
+    "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-xl border-b-4 border-black/50 font-display text-lg uppercase shadow-[0_3px_0_rgba(0,0,0,0.35)] transition-transform duration-(--duration-fast) active:translate-y-0.5 active:scale-95";
+  const chip = "-skew-x-6 border-2 border-sun/80 bg-black/70 px-3 py-1.5 shadow-[3px_3px_0_#000] sm:px-4 sm:py-2";
+  const chipInner = "inline-flex skew-x-6 items-center gap-2";
   const levelName = t.jump.levelNames[hud.level - 1] ?? "";
 
   return (
     <div ref={rootRef} className="mx-auto max-w-3xl">
       <div className="mb-3 flex flex-wrap justify-center gap-2 font-display text-lg sm:gap-3 sm:text-xl">
         <span className={chip}>
-          <Icon name="flag" className="size-5 text-mint" />
-          {t.jump.level(hud.level, hud.levels)}
-          <span className="hidden text-muted-foreground sm:inline">· {levelName}</span>
+          <span className={chipInner}>
+            <Icon name="flag" className="size-5 text-mint" />
+            {t.jump.level(hud.level, hud.levels)}
+            <span className="hidden text-muted-foreground sm:inline">· {levelName}</span>
+          </span>
         </span>
         <span className={chip}>
-          <Icon name="coins" className="size-5 text-sun" />
-          <span className="sr-only">{t.jump.coins}: </span>
-          {hud.coins}
+          <span className={chipInner}>
+            <Icon name="coins" className="size-5 text-sun" />
+            <span className="sr-only">{t.jump.coins}: </span>
+            {hud.coins}
+          </span>
         </span>
         <span className={chip}>
-          <Icon name="heart" className="size-5 text-accent" />
-          <span className="sr-only">{t.jump.lives}: </span>
-          {hud.lives}
+          <span className={chipInner}>
+            <Icon name="heart" className="size-5 text-accent" />
+            <span className="sr-only">{t.jump.lives}: </span>
+            {hud.lives}
+          </span>
         </span>
       </div>
       <p role="status" className="sr-only">
@@ -397,12 +418,12 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
           </div>
         )}
         {banner !== null && (
-          <div
-            aria-live="polite"
-            className="pointer-events-none absolute inset-0 grid animate-pop place-content-center gap-1 text-center font-display uppercase text-white [text-shadow:0_4px_0_#000,0_0_20px_rgba(0,0,0,0.6)]"
-          >
-            <p className="text-5xl sm:text-7xl">{t.jump.levelBanner(banner)}</p>
-            <p className="text-xl text-[#7dffae] sm:text-3xl">{t.jump.levelNames[banner - 1]}</p>
+          <div aria-live="polite" className="pointer-events-none absolute inset-0 grid place-content-center overflow-hidden text-center">
+            <div className="-skew-y-3 animate-pop border-y-4 border-sun bg-black/75 px-10 py-3 font-display uppercase shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+              <p className="skew-y-3 text-4xl italic text-sun [text-shadow:3px_3px_0_#000] sm:text-6xl">{t.jump.levelBanner(banner)}</p>
+              <p className="skew-y-3 text-lg text-white [text-shadow:2px_2px_0_#000] sm:text-3xl">{t.jump.levelNames[banner - 1]}</p>
+              <p className="skew-y-3 text-sm tracking-widest text-[#7dffae] sm:text-lg">{t.jump.plusUltra}</p>
+            </div>
           </div>
         )}
       </div>

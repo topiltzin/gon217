@@ -1,6 +1,6 @@
-import { blobShadow, limb } from "./art";
+import { blobShadow } from "./art";
 import type { JumpState, Player } from "./logic";
-import { rgba } from "./palette";
+import { rgba, shade } from "./palette";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -15,7 +15,7 @@ export const HERO_ACCENT: Record<Hero, { main: string; light: string; dark: stri
 };
 
 /** The whole figure is drawn at this size relative to the rig's units. */
-const FIGURE_SCALE = 0.86;
+const FIGURE_SCALE = 0.92;
 
 /* ------------------------------------------------------------------ */
 /* Poses                                                              */
@@ -111,7 +111,37 @@ function heroPose(p: Player, time: number, reduced: boolean): Pose {
 /* Shared drawing bits                                                */
 /* ------------------------------------------------------------------ */
 
-const OUT = "#0a0a10";
+/** Outline colour of the figure being drawn: deep green-black for Deku, warm brown-black for Bakugo. */
+let OUT = "#0a0a10";
+const OUTLINES: Record<Hero, string> = { deku: "#0a2415", bakugo: "#1c0e08" };
+
+/** A limb as a thick rounded stroke with a dark outline, a shaded back and a bright front edge (cel shading). */
+function limb(ctx: Ctx, x1: number, y1: number, x2: number, y2: number, w: number, color: string) {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const line = (width: number, c: string, ox = 0, oy = 0) => {
+    ctx.strokeStyle = c;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(x1 + ox, y1 + oy);
+    ctx.lineTo(x2 + ox, y2 + oy);
+    ctx.stroke();
+  };
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  // Normal pointing toward the light (up and to the front).
+  let nx = dy / len;
+  let ny = -dx / len;
+  if (nx < -0.01 || (Math.abs(nx) <= 0.01 && ny > 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  line(w + 1.3, OUT);
+  line(w, shade(color, -0.32));
+  line(w * 0.72, color, nx * w * 0.14, ny * w * 0.14);
+  line(w * 0.2, shade(color, 0.38), nx * w * 0.26, ny * w * 0.26);
+}
 
 function vGradient(ctx: Ctx, y0: number, y1: number, stops: [number, string][]) {
   const g = ctx.createLinearGradient(0, y0, 0, y1);
@@ -249,7 +279,7 @@ function drawLegs(ctx: Ctx, hero: Hero, pose: Pose, order: number[]) {
     const [kx, ky] = at(0.4, 0, THIGH, j.a1);
     const [fx, fy] = at(kx, ky, SHIN, j.a2);
     const cloth = front ? L.suit : L.suitDark;
-    limb(ctx, 0.4, 0, kx, ky, 3.7, cloth, OUT);
+    limb(ctx, 0.4, 0, kx, ky, 3.7, cloth);
     // Outer trim line down the thigh.
     ctx.strokeStyle = hero === "deku" ? rgba(L.trim, front ? 0.85 : 0.5) : rgba(L.trim, front ? 0.9 : 0.55);
     ctx.lineWidth = 0.6;
@@ -260,7 +290,7 @@ function drawLegs(ctx: Ctx, hero: Hero, pose: Pose, order: number[]) {
     ctx.moveTo(tx0 + 0.5, ty0);
     ctx.lineTo(tx1 + 0.5, ty1);
     ctx.stroke();
-    limb(ctx, kx, ky, fx, fy, 3.4, cloth, OUT);
+    limb(ctx, kx, ky, fx, fy, 3.4, cloth);
     // Knee guard (Deku's grey pads, Bakugo's small orange ones).
     ctx.fillStyle = OUT;
     ctx.beginPath();
@@ -300,7 +330,7 @@ function drawArm(ctx: Ctx, hero: Hero, pose: Pose, i: number, sx: number, sy: nu
   const [ex, ey] = at(sx, sy, UPPER, j.a1);
   const [hx, hy] = at(ex, ey, FORE, j.a2);
   if (hero === "deku") {
-    limb(ctx, sx, sy, ex, ey, 3.2, back ? L.suitDark : L.suit, OUT);
+    limb(ctx, sx, sy, ex, ey, 3.2, back ? L.suitDark : L.suit);
     ctx.strokeStyle = rgba(L.trim, back ? 0.45 : 0.85);
     ctx.lineWidth = 0.55;
     ctx.beginPath();
@@ -312,7 +342,7 @@ function drawArm(ctx: Ctx, hero: Hero, pose: Pose, i: number, sx: number, sy: nu
     ctx.beginPath();
     ctx.arc(ex, ey, 1.7, 0, Math.PI * 2);
     ctx.fill();
-    limb(ctx, ex, ey, hx, hy, 3.5, back ? L.padDark : L.pad, OUT);
+    limb(ctx, ex, ey, hx, hy, 3.5, back ? L.padDark : L.pad);
     ctx.strokeStyle = "rgba(255,255,255,0.45)";
     ctx.lineWidth = 0.5;
     ctx.beginPath();
@@ -340,7 +370,7 @@ function drawArm(ctx: Ctx, hero: Hero, pose: Pose, i: number, sx: number, sy: nu
     return [hx, hy];
   }
   // Bakugo: bare arm, then the big orange grenade gauntlet.
-  limb(ctx, sx, sy, ex, ey, 3.3, back ? L.skinShade : L.skin, OUT);
+  limb(ctx, sx, sy, ex, ey, 3.3, back ? L.skinShade : L.skin);
   ctx.strokeStyle = "rgba(160,90,60,0.4)";
   ctx.lineWidth = 0.5;
   ctx.beginPath();
@@ -411,6 +441,23 @@ function drawTorso(ctx: Ctx, hero: Hero) {
   const L = LOOKS[hero];
   torsoPath(ctx);
   inked(ctx, hGradient(ctx, -4.5, 4.5, [[0, L.suitDark], [0.45, L.suit], [1, L.suitLight]]), 0.9);
+  // Cel shading: a shadowed back, a shadowed hem, cloth folds and a bright rim on the front.
+  ctx.save();
+  torsoPath(ctx);
+  ctx.clip();
+  ctx.fillStyle = hGradient(ctx, -5, 5, [[0, "rgba(0,0,0,0.34)"], [0.38, "rgba(0,0,0,0)"], [0.82, "rgba(255,255,255,0)"], [1, "rgba(255,255,255,0.24)"]]);
+  ctx.fillRect(-6, -11, 12, 13);
+  ctx.fillStyle = vGradient(ctx, -4, 1, [[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0.3)"]]);
+  ctx.fillRect(-6, -4, 12, 5);
+  ctx.strokeStyle = "rgba(0,0,0,0.22)";
+  ctx.lineWidth = 0.4;
+  ctx.beginPath();
+  ctx.moveTo(-1.8, -3.4);
+  ctx.quadraticCurveTo(-0.4, -2.6, 0.6, -3.2);
+  ctx.moveTo(1.2, -6.6);
+  ctx.quadraticCurveTo(2.2, -5.8, 1.8, -4.6);
+  ctx.stroke();
+  ctx.restore();
   if (hero === "deku") {
     // White piping down both sides, a centre seam, a collar and the support-gear belt.
     ctx.strokeStyle = L.trim;
@@ -582,6 +629,23 @@ function drawDekuHead(ctx: Ctx, pose: Pose, time: number, reduced: boolean, glow
   ctx.beginPath();
   ctx.ellipse(0.6, 4.4, 4.6, 1.7, 0, 0, Math.PI);
   ctx.fill();
+  // Cel shading: shade near the hood, a warm blush and a rim of light on the front.
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0.6, 0.2, 5.7, 5.9, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = hGradient(ctx, -5, 6, [[0, "rgba(120,60,40,0.3)"], [0.45, "rgba(120,60,40,0)"]]);
+  ctx.fillRect(-6, -7, 13, 14);
+  ctx.fillStyle = "rgba(255,110,110,0.3)";
+  ctx.beginPath();
+  ctx.ellipse(3.4, 3, 1.5, 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.ellipse(0.6, 0.2, 5.2, 5.4, 0, -0.9, 0.4);
+  ctx.stroke();
+  ctx.restore();
 
   // Hood over the back of the head, with a green hairline of messy locks in front.
   ctx.beginPath();
@@ -630,12 +694,14 @@ function drawDekuHead(ctx: Ctx, pose: Pose, time: number, reduced: boolean, glow
     ctx.lineTo(c, d);
   }
   ctx.stroke();
-  ctx.fillStyle = "rgba(190,255,200,0.55)";
-  ctx.beginPath();
-  ctx.moveTo(-1.6, -7.6);
-  ctx.lineTo(-0.4, -5.6);
-  ctx.lineTo(-0.9, -7.8);
-  ctx.fill();
+  ctx.fillStyle = "rgba(200,255,210,0.6)";
+  for (const [x, y] of [[-1.6, -7.6], [2.4, -7.2], [-4.6, -6.4]] as const) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 1.2, y + 2);
+    ctx.lineTo(x + 0.7, y - 0.2);
+    ctx.fill();
+  }
 
   // Eyes, brows, nose and freckles.
   const ry = 2.9 - pose.squint * 1.1;
@@ -726,15 +792,26 @@ function drawBakugoHead(ctx: Ctx, pose: Pose, time: number, reduced: boolean, ra
     ctx.lineTo(tx * 0.8 + bx * 0.2, ty * 0.8 + by * 0.2);
   }
   ctx.stroke();
+  ctx.strokeStyle = "rgba(255,255,230,0.75)";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for (const [bx, by, tx, ty] of spikes) {
+    ctx.moveTo(bx + 0.9, by - 0.4);
+    ctx.lineTo(tx * 0.62 + bx * 0.38 + 0.6, ty * 0.62 + by * 0.38);
+  }
+  ctx.stroke();
 
   // Face, jaw and ear.
-  ctx.beginPath();
-  ctx.moveTo(-5.2, -1.5);
-  ctx.quadraticCurveTo(-5.6, 4.6, -1.6, 6);
-  ctx.quadraticCurveTo(2.6, 7, 5.6, 4.4);
-  ctx.quadraticCurveTo(6.8, 0.6, 5.4, -3.4);
-  ctx.quadraticCurveTo(0.6, -6.6, -5.2, -1.5);
-  ctx.closePath();
+  const facePath = () => {
+    ctx.beginPath();
+    ctx.moveTo(-5.2, -1.5);
+    ctx.quadraticCurveTo(-5.6, 4.6, -1.6, 6);
+    ctx.quadraticCurveTo(2.6, 7, 5.6, 4.4);
+    ctx.quadraticCurveTo(6.8, 0.6, 5.4, -3.4);
+    ctx.quadraticCurveTo(0.6, -6.6, -5.2, -1.5);
+    ctx.closePath();
+  };
+  facePath();
   const face = ctx.createRadialGradient(2, -1.5, 1, 0.6, 0.4, 7);
   face.addColorStop(0, "#fde3cc");
   face.addColorStop(1, L.skin);
@@ -746,6 +823,23 @@ function drawBakugoHead(ctx: Ctx, pose: Pose, time: number, reduced: boolean, ra
   ctx.beginPath();
   ctx.ellipse(0.8, 5, 4.4, 1.5, 0, 0, Math.PI);
   ctx.fill();
+  // Cel shading: shade near the ear, a flushed cheekbone and a rim of light on the front.
+  ctx.save();
+  facePath();
+  ctx.clip();
+  ctx.fillStyle = hGradient(ctx, -5.5, 6, [[0, "rgba(120,60,40,0.3)"], [0.45, "rgba(120,60,40,0)"]]);
+  ctx.fillRect(-6, -7, 13, 14);
+  ctx.fillStyle = "rgba(255,110,90,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(3.4, 3.1, 1.6, 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.55)";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(5.8, -2.4);
+  ctx.quadraticCurveTo(6.5, 1.2, 5.2, 4);
+  ctx.stroke();
+  ctx.restore();
 
   // Fringe spikes over the forehead.
   ctx.beginPath();
@@ -838,6 +932,7 @@ type RigOptions = { time: number; reduced: boolean; cowl: boolean; smashing: boo
 
 /** Draws the figure with its feet at the origin, facing right. Returns the front fist's position (hip frame, rotated by the lean). */
 function drawRig(ctx: Ctx, hero: Hero, pose: Pose, o: RigOptions): readonly [number, number] {
+  OUT = OUTLINES[hero];
   ctx.translate(0, HIP_Y + pose.bob);
   drawLegs(ctx, hero, pose, [1]);
   ctx.save();
@@ -946,11 +1041,22 @@ export function drawPortrait(ctx: Ctx, hero: Hero, cx: number, cy: number, size:
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(size, size);
+  // Comic burst rays behind the hero, then a soft glow.
+  ctx.fillStyle = rgba(accent.main, 0.22);
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -17);
+    ctx.lineTo(Math.cos(a - 0.09) * 60, -17 + Math.sin(a - 0.09) * 60);
+    ctx.lineTo(Math.cos(a + 0.09) * 60, -17 + Math.sin(a + 0.09) * 60);
+    ctx.closePath();
+    ctx.fill();
+  }
   const g = ctx.createRadialGradient(0, -16, 2, 0, -16, 26);
-  g.addColorStop(0, rgba(accent.main, 0.45));
+  g.addColorStop(0, rgba(accent.main, 0.55));
   g.addColorStop(1, rgba(accent.main, 0));
   ctx.fillStyle = g;
-  ctx.fillRect(-30, -46, 60, 60);
+  ctx.fillRect(-34, -50, 68, 68);
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath();
   ctx.ellipse(0, 0.3, 7, 1.7, 0, 0, Math.PI * 2);

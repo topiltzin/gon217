@@ -77,7 +77,7 @@ function drawSlime(ctx: Ctx, s: JumpState, e: Enemy, reduced: boolean) {
     ctx.quadraticCurveTo(0, 1.6, -w / 2, 0);
     ctx.closePath();
   };
-  ctx.fillStyle = "#1a0a33";
+  ctx.fillStyle = "#101a08";
   ctx.save();
   ctx.scale(1.12, 1.12);
   ctx.translate(0, 0.4);
@@ -85,9 +85,9 @@ function drawSlime(ctx: Ctx, s: JumpState, e: Enemy, reduced: boolean) {
   ctx.fill();
   ctx.restore();
   const g = ctx.createLinearGradient(0, -h * 1.2, 0, 0);
-  g.addColorStop(0, "#b46bff");
-  g.addColorStop(0.5, "#7a3ad0");
-  g.addColorStop(1, "#3d1a85");
+  g.addColorStop(0, "#c4e268");
+  g.addColorStop(0.5, "#6f9a2a");
+  g.addColorStop(1, "#2e470e");
   ctx.fillStyle = g;
   body();
   ctx.fill();
@@ -100,18 +100,26 @@ function drawSlime(ctx: Ctx, s: JumpState, e: Enemy, reduced: boolean) {
   ctx.beginPath();
   ctx.arc(w * 0.25, -h * 0.4, 0.9, 0, Math.PI * 2);
   ctx.fill();
-  // Angry eyes looking where it walks.
-  for (const ex of [-2.6, 2.6]) {
-    ctx.fillStyle = "#fff";
+  // Big yellow eyes with slit pupils, looking where it walks.
+  for (const ex of [-2.8, 2.8]) {
+    ctx.fillStyle = "#101a08";
     ctx.beginPath();
-    ctx.ellipse(ex + dir * 0.6, -h * 0.55, 1.9, 2.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(ex + dir * 0.6, -h * 0.55, 2.4, 2.8, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = "#e02040";
+    ctx.fillStyle = "#ffe85a";
     ctx.beginPath();
-    ctx.arc(ex + dir * 1.2, -h * 0.5, 1, 0, Math.PI * 2);
+    ctx.ellipse(ex + dir * 0.6, -h * 0.55, 1.9, 2.3, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#101a08";
+    ctx.fillRect(ex + dir * 1.2 - 0.35, -h * 0.55 - 1.8, 0.7, 3.6);
   }
-  ctx.strokeStyle = "#1a0a33";
+  // Bubbles rising in the goo.
+  ctx.fillStyle = "rgba(230,255,160,0.4)";
+  ctx.beginPath();
+  ctx.arc(-w * 0.28, -h * 0.25, 0.8, 0, Math.PI * 2);
+  ctx.arc(w * 0.3, -h * 0.75 - (reduced ? 0 : Math.abs(Math.sin(t * 3 + e.x)) * 1.5), 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#101a08";
   ctx.lineWidth = 0.9;
   ctx.lineCap = "round";
   ctx.beginPath();
@@ -121,7 +129,7 @@ function drawSlime(ctx: Ctx, s: JumpState, e: Enemy, reduced: boolean) {
   ctx.lineTo(1, -h * 0.55 - 1.6);
   ctx.stroke();
   // Little jagged grin.
-  ctx.fillStyle = "#1a0a33";
+  ctx.fillStyle = "#101a08";
   ctx.beginPath();
   ctx.moveTo(-2.4 + dir * 0.4, -h * 0.2);
   ctx.lineTo(-1.2 + dir * 0.4, -h * 0.05);
@@ -314,8 +322,17 @@ export function drawCoin(ctx: Ctx, cx: number, cy: number, time: number, phase: 
     ctx.beginPath();
     ctx.ellipse(cx, y, w * 0.6, 3.1, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.fillStyle = "rgba(170,100,10,0.75)";
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const rr = i % 2 === 0 ? 2.2 : 0.95;
+      ctx.lineTo(cx + Math.cos(a) * rr * Math.min(1, w / 3.6), y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillRect(cx - w * 0.5, y - 3.4, 0.9, 3.4);
+    ctx.fillRect(cx - w * 0.78, y - 3.8, 0.8, 2.6);
   }
 }
 
