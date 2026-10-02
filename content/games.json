@@ -47,16 +47,16 @@
   {
     "slug": "super-jump",
     "title": "Super Jump",
-    "description": "Run, jump, and grab coins on the way to the flag!",
-    "instructions": "Arrow keys or buttons to move, Space to jump. Smash bricks, bump ? blocks for coins, hop on slimes, and reach the flag!",
+    "description": "Play as Deku: run, jump and Smash through four levels, then beat the boss!",
+    "instructions": "Arrows or buttons to move, Space to jump, X to Smash. Punch villains and bricks, grab a Full Cowl for super speed, and reach the flag!",
     "icon": "flag",
     "color": "accent",
     "status": "available",
     "featured": true,
     "es": {
       "title": "Súper Salto",
-      "description": "¡Corre, salta y junta monedas hasta llegar a la bandera!",
-      "instructions": "Flechas o botones para moverte, Espacio para saltar. ¡Rompe ladrillos, golpea los bloques ? por monedas, aplasta babosas y llega a la bandera!"
+      "description": "¡Juega como Deku: corre, salta y usa Smash en cuatro niveles, y vence al jefe!",
+      "instructions": "Flechas o botones para moverte, Espacio para saltar, X para Smash. ¡Golpea villanos y ladrillos, toma un Full Cowl y llega a la bandera!"
     }
   },
   {

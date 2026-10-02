@@ -231,12 +231,26 @@ test.describe("Super Jump", () => {
     await page.mouse.up();
   });
 
-  test("losing every life ends the round with a score", async ({ page }) => {
+  test("Deku can Smash with the X key or the Smash button", async ({ page }) => {
     await page.goto("/en/games/super-jump");
     await startWithKeyboard(page);
-    // Run right without jumping: slimes and the first pit take all three lives.
+    await expect(page.getByRole("button", { name: "Smash" })).toBeVisible();
+    await page.keyboard.press("x");
+    const box = (await page.getByRole("button", { name: "Smash" }).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
+    await expect(coins(page)).toHaveText(/^0 coins, 3 lives left$/);
+  });
+
+  test("losing every life ends the round with a score", async ({ page }) => {
+    test.setTimeout(75_000);
+    await page.goto("/en/games/super-jump");
+    await startWithKeyboard(page);
+    // Run right without jumping: the first slime and the first pit take all three lives.
     await page.keyboard.down("ArrowRight");
-    await expect(page.getByRole("heading", { name: "Game over!" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Game over!" })).toBeVisible({ timeout: 45_000 });
     await page.keyboard.up("ArrowRight");
     await expect(page.getByText(/You collected \d+ coins?\./)).toBeVisible();
     await expect(page.getByText(/your best: \d+ coins/i)).toBeVisible();

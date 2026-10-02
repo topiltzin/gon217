@@ -20,6 +20,7 @@ export const ACHIEVEMENTS = [
   { id: "astro-1000", slug: "astro-storm", check: (s: Stats) => num(s, "score") >= 1000 },
   { id: "jump-level1", slug: "super-jump", check: (s: Stats) => num(s, "levels") >= 1 },
   { id: "jump-all", slug: "super-jump", check: (s: Stats) => flag(s, "allLevels") },
+  { id: "jump-smash", slug: "super-jump", check: (s: Stats) => num(s, "smashKills") >= 10 },
   { id: "jump-bricks", slug: "super-jump", check: (s: Stats) => num(s, "bricks") >= 15 },
   { id: "garden-saved", slug: "garden-guard", check: (s: Stats) => flag(s, "won") },
   { id: "garden-perfect", slug: "garden-guard", check: (s: Stats) => flag(s, "won") && num(s, "heartsLost") === 0 },

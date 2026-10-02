@@ -27,7 +27,10 @@ export type Sfx =
   | "combo"
   | "place"
   | "catch"
-  | "tick";
+  | "tick"
+  | "punch"
+  | "power"
+  | "heart";
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -150,6 +153,16 @@ export function playSfx(name: Sfx) {
       break;
     case "tick":
       tone("sine", 1000, 1000, 0.04, 0.05);
+      break;
+    case "punch":
+      hiss(0.18, 0.28, 3200);
+      tone("sawtooth", 260, 90, 0.14, 0.07);
+      break;
+    case "power":
+      notes([392, 523, 659, 784, 1047, 1319], 0.045, "sawtooth", 0.06, 0.16);
+      break;
+    case "heart":
+      notes([659, 988, 1319], 0.07, "triangle", 0.1, 0.16);
       break;
   }
 }
