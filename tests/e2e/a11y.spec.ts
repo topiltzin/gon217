@@ -24,6 +24,12 @@ for (const slug of ["memory-match", "catch-it", "tic-tac-toe", "super-jump", "ga
     await expect(page.getByRole("heading", { name: /: playing$/ })).toBeAttached();
     await page.waitForLoadState("networkidle");
     await expectNoSeriousViolations(page);
+    if (slug === "super-jump") {
+      // Past the hero picker, onto the game itself.
+      await page.getByRole("button", { name: "Start", exact: true }).click();
+      await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
+      await expectNoSeriousViolations(page);
+    }
   });
 }
 

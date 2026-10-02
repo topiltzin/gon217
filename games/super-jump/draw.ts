@@ -1,5 +1,6 @@
-import { drawCheckpoint, drawCoin, drawDeku, drawEnemy, drawFlag, drawItem, drawPlatform, drawSpikes } from "./art";
+import { drawCheckpoint, drawCoin, drawEnemy, drawFlag, drawItem, drawPlatform, drawSpikes } from "./art";
 import type { Camera, Fx } from "./fx";
+import { type Hero, drawHero } from "./heroes";
 import { EFFECT_S, type JumpState, type Level, TILE, bossStatus } from "./logic";
 import { type TileKind, VIEW_H, VIEW_W, drawAmbient, drawBackdrop, drawOverlay, drawTiles, getPixelScale } from "./scenery";
 
@@ -23,10 +24,12 @@ function blocksOf(level: Level): Blocks {
 /** Rounds to the canvas pixel grid so tiles never show seams while the camera moves. */
 const snap = (v: number) => Math.round(v * getPixelScale()) / getPixelScale();
 
-export type DrawOptions = { camera: Camera; fx: Fx; reducedMotion: boolean };
+export type DrawOptions = { camera: Camera; fx: Fx; reducedMotion: boolean; hero: Hero };
+
+export { HEROES, HERO_ACCENT, type Hero, drawPortrait } from "./heroes";
 
 /** Draws one frame of the game. The context must already be scaled by getPixelScale(). */
-export function drawFrame(ctx: CanvasRenderingContext2D, s: JumpState, { camera, fx, reducedMotion }: DrawOptions) {
+export function drawFrame(ctx: CanvasRenderingContext2D, s: JumpState, { camera, fx, reducedMotion, hero }: DrawOptions) {
   const { level } = s;
   const shakeX = reducedMotion ? 0 : Math.sin(s.time * 83) * camera.shake * 0.5;
   const shakeY = reducedMotion ? 0 : Math.cos(s.time * 71) * camera.shake * 0.5;
@@ -97,7 +100,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, s: JumpState, { camera,
   const hidden = s.invulnerable > 0 && !reducedMotion && Math.floor(s.time * 12) % 2 === 0;
   if (!hidden) {
     ctx.globalAlpha = s.invulnerable > 0 && reducedMotion ? 0.5 : 1;
-    drawDeku(ctx, s, reducedMotion);
+    drawHero(ctx, s, reducedMotion, hero);
     ctx.globalAlpha = 1;
   }
 

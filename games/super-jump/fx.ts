@@ -1,3 +1,4 @@
+import { HERO_ACCENT, type Hero } from "./heroes";
 import { type GameEvent, type JumpState, TILE } from "./logic";
 import { VIEW_H, VIEW_W } from "./scenery";
 import { PALETTES } from "./palette";
@@ -68,7 +69,8 @@ export type Fx = {
 
 const MAX_PARTICLES = 160;
 
-export function createFx(): Fx {
+export function createFx(hero: Hero = "deku"): Fx {
+  const acc = HERO_ACCENT[hero];
   const fx: Fx = {
     particles: [],
     runTimer: 0,
@@ -94,9 +96,15 @@ export function createFx(): Fx {
           burst(fx, e.x, e.y, 9, "#fff4a0");
           ring(fx, e.x, e.y, "#ffffff", 14);
           shake(1.5);
-        } else if (e.kind === "punch") ring(fx, e.x + s.player.facing * 6, e.y, "#7dffae", 12);
+        } else if (e.kind === "punch") {
+          ring(fx, e.x + s.player.facing * 6, e.y, acc.main, 12);
+          if (hero === "bakugo") {
+            burst(fx, e.x + s.player.facing * 8, e.y, 8, "#ffb040");
+            smoke(fx, e.x + s.player.facing * 8, e.y, 3);
+          }
+        }
         else if (e.kind === "kill") {
-          burst(fx, e.x, e.y, 12, "#9dffc0");
+          burst(fx, e.x, e.y, 12, hero === "bakugo" ? "#ffb040" : "#9dffc0");
           smoke(fx, e.x, e.y, 5);
           ring(fx, e.x, e.y, "#ffffff", 18);
           shake(3);
@@ -104,8 +112,8 @@ export function createFx(): Fx {
           burst(fx, e.x, e.y, 12, "#ff5a5a");
           shake(4);
         } else if (e.kind === "power") {
-          burst(fx, e.x, e.y, 18, "#5dff9d");
-          ring(fx, e.x, e.y, "#5dff9d", 26);
+          burst(fx, e.x, e.y, 18, acc.main);
+          ring(fx, e.x, e.y, acc.main, 26);
           ring(fx, e.x, e.y, "#ffffff", 16);
           shake(2);
         } else if (e.kind === "heart") {
@@ -150,7 +158,7 @@ export function createFx(): Fx {
       fx.auraTimer -= dt;
       if (pl.cowl > 0 && fx.auraTimer <= 0) {
         fx.auraTimer = 0.04;
-        fx.particles.push(p(pl.x + pl.w / 2 + (Math.random() - 0.5) * 12, pl.y + Math.random() * pl.h, (Math.random() - 0.5) * 20, -30 - Math.random() * 30, 0, 0.45, 1.2, Math.random() < 0.5 ? "#7dffae" : "#ffffff", "spark", 0));
+        fx.particles.push(p(pl.x + pl.w / 2 + (Math.random() - 0.5) * 12, pl.y + Math.random() * pl.h, (Math.random() - 0.5) * 20, -30 - Math.random() * 30, 0, 0.45, 1.2, Math.random() < 0.5 ? acc.main : "#ffffff", "spark", 0));
       }
     },
     draw(ctx) {

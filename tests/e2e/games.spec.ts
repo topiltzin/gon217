@@ -6,6 +6,11 @@ async function press(locator: Locator, touch: boolean) {
   else await locator.click();
 }
 
+/** Super Jump asks which hero to play before it starts; Deku is picked by default. */
+async function startJump(page: Page, touch = false) {
+  await press(page.getByRole("button", { name: "Start", exact: true }), touch);
+}
+
 async function startWithKeyboard(page: Page) {
   const play = page.getByRole("button", { name: "Play", exact: true });
   await play.focus();
@@ -209,6 +214,7 @@ test.describe("Super Jump", () => {
   test("keyboard: hold right to run and grab the first coins", async ({ page }) => {
     await page.goto("/en/games/super-jump");
     await startWithKeyboard(page);
+    await startJump(page);
     await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
     await expect(coins(page)).toHaveText(/^0 coins, 3 lives left$/);
     await page.keyboard.down("ArrowRight");
@@ -222,6 +228,7 @@ test.describe("Super Jump", () => {
   test("on-screen buttons move the player", async ({ page }, testInfo) => {
     await page.goto("/en/games/super-jump");
     await press(page.getByRole("button", { name: "Play", exact: true }), testInfo.project.name === "mobile");
+    await startJump(page, testInfo.project.name === "mobile");
     const rightButton = page.getByRole("button", { name: "Move right" });
     await expect(rightButton).toBeVisible();
     const box = (await rightButton.boundingBox())!;
@@ -231,9 +238,10 @@ test.describe("Super Jump", () => {
     await page.mouse.up();
   });
 
-  test("Deku can Smash with the X key or the Smash button", async ({ page }) => {
+  test("the hero can Smash with the X key or the Smash button", async ({ page }) => {
     await page.goto("/en/games/super-jump");
     await startWithKeyboard(page);
+    await startJump(page);
     await expect(page.getByRole("button", { name: "Smash" })).toBeVisible();
     await page.keyboard.press("x");
     const box = (await page.getByRole("button", { name: "Smash" }).boundingBox())!;
@@ -244,10 +252,27 @@ test.describe("Super Jump", () => {
     await expect(coins(page)).toHaveText(/^0 coins, 3 lives left$/);
   });
 
+  test("pick Bakugo, and the choice is remembered", async ({ page }) => {
+    await page.goto("/en/games/super-jump");
+    await startWithKeyboard(page);
+    const deku = page.getByRole("button", { name: /Deku/ });
+    const bakugo = page.getByRole("button", { name: /Bakugo/ });
+    await expect(deku).toHaveAttribute("aria-pressed", "true");
+    await bakugo.click();
+    await expect(bakugo).toHaveAttribute("aria-pressed", "true");
+    await expect(deku).toHaveAttribute("aria-pressed", "false");
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(page.getByRole("img", { name: /game screen/i })).toBeVisible();
+    await page.reload();
+    await startWithKeyboard(page);
+    await expect(page.getByRole("button", { name: /Bakugo/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("losing every life ends the round with a score", async ({ page }) => {
     test.setTimeout(75_000);
     await page.goto("/en/games/super-jump");
     await startWithKeyboard(page);
+    await startJump(page);
     // Run right without jumping: the first slime and the first pit take all three lives.
     await page.keyboard.down("ArrowRight");
     await expect(page.getByRole("heading", { name: "Game over!" })).toBeVisible({ timeout: 45_000 });

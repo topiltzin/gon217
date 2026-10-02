@@ -5,7 +5,7 @@ import { useT } from "@/components/I18nProvider";
 import { Icon } from "@/components/ui/Icon";
 import type { GameProps } from "@/games/types";
 import { type Sfx, playSfx } from "@/lib/sfx";
-import { VIEW_H, VIEW_W, clearSceneryCache, drawFrame, setPixelScale } from "./draw";
+import { HEROES, type Hero, VIEW_H, VIEW_W, clearSceneryCache, drawFrame, drawPortrait, setPixelScale } from "./draw";
 import { createCamera, createFx, updateCamera } from "./fx";
 import { BOSS_HP, COWL_S, type GameEvent, type Input, type JumpState, START_LIVES, allLevels, bossStatus, createGame, step } from "./logic";
 
@@ -35,6 +35,18 @@ const KEYS: Record<string, Key> = {
   k: "smash",
   K: "smash",
 };
+
+const HERO_KEY = "gks:jump-hero";
+
+function savedHero(): Hero {
+  try {
+    const saved = window.localStorage.getItem(HERO_KEY);
+    if (saved === "deku" || saved === "bakugo") return saved;
+  } catch {
+    // Storage can be blocked; Deku is the default.
+  }
+  return "deku";
+}
 
 const NO_INPUT: Input = { left: false, right: false, jump: false, smash: false };
 
@@ -85,11 +97,27 @@ const START_HUD: Hud = {
   boss: 0,
 };
 
+/** A small canvas with the hero standing ready, for the picker. */
+function HeroPortrait({ hero }: { hero: Hero }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPortrait(ctx, hero, canvas.width / 2, canvas.height - 14, canvas.height / 44, 0, "ready");
+  }, [hero]);
+  return <canvas ref={ref} width={240} height={280} aria-hidden="true" className="h-40 w-auto" />;
+}
+
 export default function SuperJump({ onFinish, paused }: GameProps) {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const input = useRef<Input>({ ...NO_INPUT });
+  // The game loads on the client only, so the last pick on this device can be read straight away.
+  const [pick, setPick] = useState<Hero>(savedHero);
+  const [hero, setHero] = useState<Hero | null>(null);
   const [hud, setHud] = useState<Hud>(START_HUD);
   const [banner, setBanner] = useState<number | null>(null);
   const pausedRef = useRef(paused);
@@ -102,7 +130,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
   // Game loop: fixed 60 Hz physics, drawn every animation frame. React only re-renders when the HUD changes.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!hero || !canvas) return;
     // Match the canvas to the screen: sharp on big or high-density screens, lighter on small ones.
     const pixelScale = Math.min(4, Math.max(2, Math.ceil(((canvas.clientWidth || 640) * (window.devicePixelRatio || 1)) / VIEW_W)));
     setPixelScale(pixelScale);
@@ -118,7 +146,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
     let cleared = 0;
     let state = createGame(levels[0]);
     let camera = createCamera(state);
-    const fx = createFx();
+    const fx = createFx(hero);
     let levelBreak = 0;
     let last = performance.now();
     let acc = 0;
@@ -167,7 +195,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
         updateCamera(camera, state, elapsed, reducedMotion);
         fx.update(elapsed, state, reducedMotion);
       }
-      drawFrame(ctx, state, { camera, fx, reducedMotion });
+      drawFrame(ctx, state, { camera, fx, reducedMotion, hero });
       const won = state.status === "won";
       if (won && cleared < levels.length) cleared = levels.length;
       const next: Hud = {
@@ -205,14 +233,14 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
       cancelAnimationFrame(frame);
       clearSceneryCache();
     };
-  }, []);
+  }, [hero]);
 
   const report = useEffectEvent(() =>
     onFinish({
       headline: hud.status === "won" ? t.jump.won : t.jump.lost,
       detail: `${t.jump.detail(hud.coins)} ${t.jump.villains(hud.kills)} ${t.jump.levelsDone(hud.cleared, hud.levels)}`,
       score: hud.coins,
-      stats: { levels: hud.cleared, allLevels: hud.status === "won", bricks: hud.bricks, coins: hud.coins, kills: hud.kills, smashKills: hud.smashKills },
+      stats: { levels: hud.cleared, allLevels: hud.status === "won", bricks: hud.bricks, coins: hud.coins, kills: hud.kills, smashKills: hud.smashKills, bakugo: hero === "bakugo" },
     }),
   );
 
@@ -224,6 +252,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
 
   // Keyboard, while focus is on the game (or the page itself) rather than a link.
   useEffect(() => {
+    if (!hero) return;
     const onGame = () => {
       const active = document.activeElement;
       return !active || active === document.body || active.tagName === "H1" || !!rootRef.current?.contains(active);
@@ -247,7 +276,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
       window.removeEventListener("keyup", onUp);
       window.removeEventListener("blur", release);
     };
-  }, []);
+  }, [hero]);
 
   // Touch/mouse buttons: held while the pointer is down on them.
   function setKey(e: PointerEvent<HTMLButtonElement>, value: boolean) {
@@ -264,6 +293,48 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
     onLostPointerCapture: (e: PointerEvent<HTMLButtonElement>) => setKey(e, false),
     onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
   };
+
+  if (!hero) {
+    const start = () => {
+      try {
+        window.localStorage.setItem(HERO_KEY, pick);
+      } catch {
+        // Not saving is fine.
+      }
+      setHero(pick);
+    };
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col gap-6 rounded-(--radius-card) bg-card p-6 sm:p-8">
+        <fieldset>
+          <legend className="mb-3 font-display text-2xl uppercase">{t.jump.chooseHero}</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {HEROES.map((h) => (
+              <button
+                key={h}
+                type="button"
+                aria-pressed={pick === h}
+                onClick={() => setPick(h)}
+                className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-transparent bg-muted p-4 text-center transition-colors duration-(--duration-fast) hover:border-white/20 aria-pressed:border-sun aria-pressed:bg-[#32324a]"
+              >
+                <HeroPortrait hero={h} />
+                <span className="block font-display text-xl">{t.jump.heroNames[h]}</span>
+                <span className="block text-sm text-muted-foreground">{t.jump.heroFull[h]}</span>
+                <span className="block text-muted-foreground">{t.jump.heroHints[h]}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <button
+          type="button"
+          onClick={start}
+          className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-lg bg-accent px-8 font-display text-xl uppercase text-on-accent"
+        >
+          <Icon name="play" className="size-6" />
+          {t.jump.start}
+        </button>
+      </div>
+    );
+  }
 
   const control =
     "grid min-h-16 min-w-16 cursor-pointer touch-none select-none place-items-center rounded-xl font-display text-lg uppercase transition-transform duration-(--duration-fast) active:scale-95";
@@ -306,7 +377,7 @@ export default function SuperJump({ onFinish, paused }: GameProps) {
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-3 w-36 rounded-md bg-black/60 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white"
           >
-            {t.jump.cowl}
+            {hero === "bakugo" ? t.jump.boost : t.jump.cowl}
             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/20">
               <div className="h-full rounded-full bg-[#3dff8a]" style={{ width: `${Math.min(100, (hud.cowl / (COWL_S * 10)) * 100)}%` }} />
             </div>
